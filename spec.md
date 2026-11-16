@@ -68,6 +68,8 @@ A public website for job seekers, connected to an AI coding agent (GitHub Copilo
   - How to calculate the fit score
   - Writing tailored resumes and cover letters
   - Writing cold messages on LinkedIn and Gmail
+  - Apply autofill, Gmail status updates, mismatch insights, and profile building
+- Full list of skills: `skills.md`.
 - **The full Jobpot workflow** as a skill, started with "jobpot!".
 - **Frontend and backend** code for the website.
 
