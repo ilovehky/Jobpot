@@ -123,16 +123,17 @@ helperRoutes.get('/helper/status', requireUser, async (c) => {
       .all<{ device_name: string; created_at: number; last_used_at: number }>(),
     readSettings(c, userId),
     c.env.DB.prepare(
-      'SELECT started_at, finished_at, status, ai_requests, jobs_found FROM runs WHERE user_id = ? ORDER BY started_at DESC LIMIT 1',
+      'SELECT id, started_at, finished_at, status, ai_requests, jobs_found FROM runs WHERE user_id = ? ORDER BY started_at DESC LIMIT 1',
     )
       .bind(userId)
-      .first<{ started_at: number; finished_at: number; status: string; ai_requests: number | null; jobs_found: number }>(),
+      .first<{ id: string; started_at: number; finished_at: number; status: string; ai_requests: number | null; jobs_found: number }>(),
   ])
   return c.json({
     devices: devices.results.map((d) => ({ name: d.device_name, connectedAt: d.created_at, lastUsedAt: d.last_used_at })),
     settings: settingsJson(settings),
     lastRun: lastRun
       ? {
+          id: lastRun.id,
           startedAt: lastRun.started_at,
           finishedAt: lastRun.finished_at,
           status: lastRun.status,
@@ -148,16 +149,39 @@ helperRoutes.delete('/helper/devices', requireUser, async (c) => {
   return c.json({ ok: true })
 })
 
+helperRoutes.put('/settings', requireUser, async (c) => {
+  const body = await readJson(c)
+  const userId = c.get('userId')
+  const current = await readSettings(c, userId)
+  if (!current) throw new ValidationError('Connect your computer and say "jobpot!" to your agent first.')
+  const maxMinutes = int(body.maxMinutes, 'Max search time', 1, 60)
+  const maxRequests = body.maxRequests == null ? null : int(body.maxRequests, 'AI request limit', 1, 500)
+  const maxJobs = int(body.maxJobs, 'Jobs per day', 1, MAX_JOBS_PER_RUN)
+  if (!Array.isArray(body.sites) || !body.sites.length) throw new ValidationError('Pick at least one job site.')
+  const sites = SITES.filter((site) => (body.sites as unknown[]).includes(site))
+  const closest = int(body.closestCutoff, 'Closest fit score', 1, 100)
+  const reach = int(body.reachCutoff, 'Reach score', 0, 99)
+  if (reach >= closest) throw new ValidationError('The Reach score must be lower than the Closest fit score.')
+  await c.env.DB.prepare(
+    `UPDATE settings SET max_minutes = ?, max_requests = ?, max_jobs = ?, sites = ?, closest_cutoff = ?, reach_cutoff = ?,
+       updated_at = ? WHERE user_id = ?`,
+  )
+    .bind(maxMinutes, maxRequests, maxJobs, JSON.stringify(sites), closest, reach, Date.now(), userId)
+    .run()
+  return c.json({ ok: true })
+})
+
 helperRoutes.get('/jobs', requireUser, async (c) => {
   const userId = c.get('userId')
   const [jobs, settings] = await Promise.all([
     c.env.DB.prepare(
-      `SELECT id, url, title, company, location, work_type, source, apply_url, posted_at, score, reason, found_at
+      `SELECT id, run_id, url, title, company, location, work_type, source, apply_url, posted_at, score, reason, found_at
        FROM jobs WHERE user_id = ? ORDER BY score DESC, found_at DESC LIMIT 200`,
     )
       .bind(userId)
       .all<{
         id: string
+        run_id: string
         url: string
         title: string
         company: string
@@ -178,6 +202,7 @@ helperRoutes.get('/jobs', requireUser, async (c) => {
     cutoffs: { closest, reach },
     jobs: jobs.results.map((j) => ({
       id: j.id,
+      runId: j.run_id,
       url: j.url,
       title: j.title,
       company: j.company,

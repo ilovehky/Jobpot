@@ -30,14 +30,22 @@ Score = sum of (area score ÷ 5 × weight), giving 0–100.
 
 Count a skill only when the resume or portfolio shows it was used (in a job, project, or result). Accept close synonyms, e.g. "Figma" for "UI design tools" or "JS" for "JavaScript".
 
-## Step 4: Tier
+## Step 4: Apply caps
+
+Caps keep tiers honest. Use the user's Closest fit cutoff (default 75):
+
+- **Experience gap:** if the job asks for 2 or more years more than the user's relevant experience, the score is at most one point below the Closest fit cutoff (74 by default), so it lands in Reach at best. Count full-time roles in the field; internships count as half.
+- **Seniority title:** Staff, Principal, Lead, Manager, or Director roles when the user has under 6 years of experience: at most 20 points below the Closest fit cutoff (55 by default).
+- **Deal-breakers** from Step 2 still cap at 40.
+
+## Step 5: Tier
 
 Use the user's cutoffs. Defaults: **Closest fit** 75+, **Reach** 50–74, **Far reach** below 50.
 
 ## Output
 
 - Score (whole number) and tier.
-- One-line reason, e.g. "Strong on Figma and design systems; missing 2 of 5 required years."
+- One-line reason under 140 characters, e.g. "Strong on Figma and design systems; asks 5+ years vs. your 2." Mention a cap when one applied.
 - Matched and missing required skills (short lists), which Tab 3 uses for mismatch analysis.
 
 ## Rules

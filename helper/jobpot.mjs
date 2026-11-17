@@ -238,6 +238,12 @@ async function profile() {
   console.log(JSON.stringify(await api(requireConfig(), 'GET', '/helper/profile'), null, 2))
 }
 
+// LinkedIn links the same job with and without a title slug; keep one form so "already seen" checks work.
+function canonicalUrl(url) {
+  const linkedin = url.match(/^https?:\/\/(?:[\w-]+\.)?linkedin\.com\/jobs\/view\/(?:[^/?#]*-)?(\d+)/i)
+  return linkedin ? `https://www.linkedin.com/jobs/view/${linkedin[1]}` : url.replace(/\/$/, '')
+}
+
 function cleanJob(raw) {
   const text = (v, label, max, required = true) => {
     const t = typeof v === 'string' ? v.trim() : ''
@@ -256,7 +262,7 @@ function cleanJob(raw) {
     location: text(raw.location, 'location', 200, false),
     workType: WORK_TYPES.includes(raw.workType) ? raw.workType : 'unknown',
     source: text(raw.source, 'source', 50),
-    url: link(raw.url, 'url', true),
+    url: canonicalUrl(link(raw.url, 'url', true)),
     applyUrl: link(raw.applyUrl, 'applyUrl', false),
     postedAt: text(raw.postedAt, 'postedAt', 40, false),
     score: raw.score,
@@ -277,9 +283,8 @@ function result([action, json]) {
     fail('The job is not valid JSON. Wrap it in single quotes.')
   }
   const job = cleanJob(raw)
-  const seen = new Set(readJsonFile(path.join(runDir, 'profile.json')).seenUrls)
-  if (seen.has(job.url)) return console.log('Skipped: this job was already shown to the user before.')
   if (jobs.some((j) => j.url === job.url)) return console.log('Skipped: already saved in this run.')
+  if (seenUrls().has(job.url)) return console.log('Skipped: this job was already shown to the user before.')
   if (jobs.length >= 100) fail('100 jobs saved already. Stop and finish.')
   jobs.push(job)
   writePrivate(file, jobs)
@@ -305,39 +310,179 @@ function strip(html) {
 }
 
 async function feed([system, company], flags) {
-  const build = FEEDS[system]
-  if (!build || !company || !/^[\w-]+$/.test(company)) fail('Use: jobpot feed <greenhouse|lever|ashby> <company-slug>')
-  const response = await fetch(build(company), { headers: { 'User-Agent': 'Jobpot helper' } }).catch(() => null)
-  if (!response?.ok) fail(`No public ${system} job feed found for "${company}".`)
+  if (!FEEDS[system] || !company) fail('Use: jobpot feed <greenhouse|lever|ashby> <company-slug>')
+  return scan([`${system}:${company}`], flags)
+}
+
+function playwright(args) {
+  const cwd = process.env.JOBPOT_RUN_DIR ?? os.tmpdir()
+  return spawnSync('playwright-cli', ['-s=jobpot', ...args], { encoding: 'utf8', cwd, timeout: 60_000 })
+}
+
+function openPage(url) {
+  let out = playwright(['goto', url])
+  if (/is not open/.test(out.stdout + out.stderr)) {
+    const browser = readConfig()?.browser
+    out = playwright(['open', ...(browser ? ['--browser', browser] : []), url])
+  }
+  if (out.status !== 0) fail(`Couldn't open ${url}.`)
+}
+
+function pageValue(fn) {
+  const out = playwright(['--raw', 'eval', fn])
+  if (out.status !== 0) fail('Reading the page failed.')
+  let value = JSON.parse(out.stdout.trim() || 'null')
+  if (typeof value === 'string') {
+    try {
+      value = JSON.parse(value)
+    } catch {
+      // Plain text result.
+    }
+  }
+  return value
+}
+
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms))
+}
+
+function runFile(name) {
+  return path.join(runState().runDir, name)
+}
+
+function readCache() {
+  try {
+    return readJsonFile(runFile('cache.json'))
+  } catch {
+    return {}
+  }
+}
+
+function seenUrls() {
+  const runDir = process.env.JOBPOT_RUN_DIR
+  if (!runDir) return new Set()
+  const saved = readJsonFile(path.join(runDir, 'results.json')).map((j) => j.url)
+  return new Set([...readJsonFile(path.join(runDir, 'profile.json')).seenUrls, ...saved].map(canonicalUrl))
+}
+
+function titlePattern(flags) {
+  if (flags.match) return new RegExp(flags.match, 'i')
+  if (!process.env.JOBPOT_RUN_DIR) return null
+  const titles = readJsonFile(path.join(process.env.JOBPOT_RUN_DIR, 'profile.json')).targetTitles
+  return new RegExp(titles.map((t) => t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|'), 'i')
+}
+
+async function fetchFeed(system, company) {
+  const response = await fetch(FEEDS[system](company), { headers: { 'User-Agent': 'Jobpot helper' } }).catch(() => null)
+  if (!response?.ok) return null
   const data = await response.json()
-  let jobs
+  const source = 'company-pages'
   if (system === 'greenhouse') {
-    jobs = (data.jobs ?? []).map((j) => ({
-      title: j.title, location: j.location?.name ?? '', url: j.absolute_url,
+    return (data.jobs ?? []).map((j) => ({
+      company, source, title: j.title, location: j.location?.name ?? '', url: j.absolute_url,
       postedAt: (j.updated_at ?? '').slice(0, 10), description: strip(j.content),
     }))
-  } else if (system === 'lever') {
-    jobs = (Array.isArray(data) ? data : []).map((j) => ({
-      title: j.text, location: j.categories?.location ?? '', url: j.hostedUrl, postedAt: '',
+  }
+  if (system === 'lever') {
+    return (Array.isArray(data) ? data : []).map((j) => ({
+      company, source, title: j.text, location: j.categories?.location ?? '', url: j.hostedUrl, postedAt: '',
       description: strip(`${j.descriptionPlain ?? ''} ${(j.lists ?? []).map((l) => `${l.text}: ${l.content}`).join(' ')}`),
     }))
-  } else {
-    jobs = (data.jobs ?? []).map((j) => ({
-      title: j.title, location: `${j.location ?? ''}${j.isRemote ? ' (Remote)' : ''}`, url: j.jobUrl,
-      postedAt: (j.publishedAt ?? '').slice(0, 10), description: strip(j.descriptionPlain),
-    }))
   }
-  let pattern = flags.match
-  if (!pattern && process.env.JOBPOT_RUN_DIR) {
-    const titles = readJsonFile(path.join(process.env.JOBPOT_RUN_DIR, 'profile.json')).targetTitles
-    pattern = titles.map((t) => t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|')
+  return (data.jobs ?? []).map((j) => ({
+    company, source, title: j.title, location: `${j.location ?? ''}${j.isRemote ? ' (Remote)' : ''}`, url: j.jobUrl,
+    postedAt: (j.publishedAt ?? '').slice(0, 10), description: strip(j.descriptionPlain),
+  }))
+}
+
+// Scans many company feeds at once and returns a short list; full descriptions wait in the run cache for `describe`.
+async function scan(groups, flags) {
+  const targets = []
+  for (const group of groups) {
+    const [system, list] = group.split(':')
+    if (!FEEDS[system] || !list) fail('Use: jobpot scan greenhouse:stripe,figma ashby:openai lever:palantir')
+    for (const company of list.split(',')) if (/^[\w-]+$/.test(company)) targets.push([system, company])
   }
-  const re = pattern ? new RegExp(pattern, 'i') : null
-  const matches = jobs.filter((j) => !re || re.test(j.title))
+  if (!targets.length) fail('Add at least one company, e.g. jobpot scan greenhouse:stripe')
+  const re = titlePattern(flags)
+  const seen = seenUrls()
+  const results = []
+  const missing = []
+  for (let i = 0; i < targets.length; i += 8) {
+    const batch = await Promise.all(targets.slice(i, i + 8).map(([sys, c]) => fetchFeed(sys, c).then((jobs) => [sys, c, jobs])))
+    for (const [sys, c, jobs] of batch) {
+      if (!jobs) missing.push(`${sys}:${c}`)
+      else results.push(...jobs.filter((j) => (!re || re.test(j.title)) && !seen.has(canonicalUrl(j.url))))
+    }
+  }
+  if (process.env.JOBPOT_RUN_DIR) {
+    const cache = readCache()
+    for (const job of results) cache[job.url] = job
+    writePrivate(runFile('cache.json'), cache)
+  }
   console.log(JSON.stringify({
-    company, totalPostings: jobs.length, matching: matches.length,
-    jobs: matches.slice(0, 25).map((j) => ({ ...j, description: j.description.slice(0, 2500) })),
+    companiesChecked: targets.length - missing.length, notFound: missing, newMatching: results.length,
+    jobs: results.slice(0, 80).map(({ description: _d, ...job }) => job),
   }, null, 1))
+  if (results.length > 80) console.log(`(${results.length - 80} more not shown; narrow with --match)`)
+}
+
+const SEARCH_SITES = {
+  linkedin: {
+    url: (q, loc) => `https://www.linkedin.com/jobs/search/?keywords=${encodeURIComponent(q)}&location=${encodeURIComponent(loc)}&f_TPR=r86400`,
+    read: `() => [...document.querySelectorAll('ul.jobs-search__results-list li')].map((li) => ({
+      title: li.querySelector('h3')?.innerText.trim(), company: li.querySelector('h4')?.innerText.trim(),
+      location: li.querySelector('.job-search-card__location')?.innerText.trim(),
+      postedAt: li.querySelector('time')?.getAttribute('datetime') ?? '',
+      url: (li.querySelector('a.base-card__full-link')?.href ?? '').split('?')[0] }))`,
+  },
+  builtin: {
+    url: (q, loc) => {
+      const [city = '', state = ''] = loc.split(',').map((x) => x.trim())
+      return `https://builtin.com/jobs/hybrid/remote/office?search=${encodeURIComponent(q)}&city=${encodeURIComponent(city)}&state=${encodeURIComponent(state)}&country=USA&daysSinceUpdated=1`
+    },
+    read: `() => [...document.querySelectorAll('[data-id=job-card]')].map((c) => ({
+      title: c.querySelector('h2')?.innerText.trim(), company: c.querySelector('[data-id=company-title]')?.innerText.trim(),
+      location: (c.innerText.match(/(Remote|Hybrid|In-Office)[^\\n]*/) || [''])[0], postedAt: '',
+      url: c.querySelector('h2 a')?.href ?? '' }))`,
+  },
+  indeed: {
+    url: (q, loc) => `https://www.indeed.com/jobs?q=${encodeURIComponent(q)}&l=${encodeURIComponent(loc)}&fromage=1&sort=date`,
+    read: `() => /blocked|security check/i.test(document.title) ? 'BLOCKED' : [...document.querySelectorAll('[data-jk]')].map((e) => {
+      const c = e.closest('li') || e
+      return { title: c.querySelector('h2')?.innerText.trim(), company: c.querySelector('[data-testid=company-name]')?.innerText.trim(),
+        location: c.querySelector('[data-testid=text-location]')?.innerText.trim(), postedAt: '',
+        url: 'https://www.indeed.com/viewjob?jk=' + e.dataset.jk } })`,
+  },
+}
+
+async function search([site, query, location]) {
+  const config = SEARCH_SITES[site]
+  if (!config || !query || !location) fail(`Use: jobpot search <${Object.keys(SEARCH_SITES).join('|')}> "<job title>" "<City, ST>"`)
+  openPage(config.url(query, location))
+  await sleep(3000)
+  const found = pageValue(config.read)
+  if (found === 'BLOCKED') return console.log(`${site} blocked the signed-out browser. Skip ${site} for this run.`)
+  const seen = seenUrls()
+  const jobs = (Array.isArray(found) ? found : [])
+    .map((j) => ({ ...j, url: j.url ? canonicalUrl(j.url) : '' }))
+    .filter((j) => j.title && j.company && j.url && !seen.has(j.url))
+  console.log(JSON.stringify({ site, newJobs: jobs.length, jobs: jobs.slice(0, 50).map((j) => ({ ...j, source: site })) }, null, 1))
+}
+
+const DESCRIPTION_SELECTORS = [
+  '.show-more-less-html__markup', '.description__text', '[id^=job-post-body]', '#jobDescriptionText', 'main', 'body',
+]
+
+async function describe([url]) {
+  if (!url || !/^https?:\/\//.test(url)) fail('Use: jobpot describe <job url>')
+  const cached = process.env.JOBPOT_RUN_DIR ? readCache()[url] : null
+  if (cached?.description) return console.log(cached.description.slice(0, 6000))
+  openPage(url)
+  await sleep(2500)
+  const text = pageValue(`() => { for (const s of ${JSON.stringify(DESCRIPTION_SELECTORS)}) {
+    const el = document.querySelector(s); if (el && el.innerText.trim().length > 200) return el.innerText } return document.body.innerText }`)
+  console.log(String(text ?? '').replace(/\s+/g, ' ').trim().slice(0, 6000) || 'No description found on this page.')
 }
 
 function browse([command, ...args]) {
@@ -369,11 +514,15 @@ function buildPrompt(run, profileData) {
   return `Run today's Jobpot daily search. Follow the "jobpot" skill (Daily run section) and the skills it points to (jobpot-job-sites, jobpot-fit-score${needsSummary ? ', jobpot-profile' : ''}).
 
 You are running unattended, so never ask questions. The only command you may run is \`jobpot\`:
-- \`jobpot profile\`: the user's resume text, target titles and locations, settings, and seenUrls (jobs already shown; skip them).
-- \`jobpot feed <greenhouse|lever|ashby> <company-slug>\`: a company's public job feed, already filtered to the user's target titles.
-- \`jobpot browse <command> [args]\`: a signed-out browser (open, goto, snapshot, find, eval, click, press, go-back, close). Pause a few seconds between page loads.
-- \`jobpot result add '<job json>'\`: save one scored job. Save each job as soon as you score it; jobs saved when time runs out are kept.
+- \`jobpot profile\`: the user's resume text, target titles and locations, settings, and seenUrls (jobs already shown).
+- \`jobpot scan greenhouse:<slug>,<slug> ashby:<slug> lever:<slug>\`: check many companies' public job feeds at once; returns new jobs matching the target titles.
+- \`jobpot search <linkedin|builtin|indeed> "<job title>" "<City, ST>"\`: jobs posted in the last 24 hours on that site.
+- \`jobpot describe <url>\`: the full job description, needed before scoring.
+- \`jobpot browse <command> [args]\`: a signed-out browser for anything else (open, goto, snapshot, find, eval, click, close).
+- \`jobpot result add '<job json>'\`: save one scored job right after scoring it. Jobs saved when time runs out are kept.
 - \`jobpot time-left\`: minutes left.${needsSummary ? "\n- `jobpot summary '<text>'`: save the user's profile summary (3-4 sentences, see jobpot-profile). Do this first." : ''}
+
+Work in this order: profile, scan company feeds, search the enabled job sites, then describe and score the most promising jobs first. Keep going until fewer than 1 minute is left or you have saved the maximum number of jobs.
 
 Limits: stop by ${deadline} (${run.minutes} minutes from now) and save at most ${run.maxJobs} jobs. Enabled sites: ${run.sites.join(', ')}.
 Job JSON fields: title, company, location, workType (remote|hybrid|onsite|unknown), source, url, applyUrl, postedAt, score (0-100 whole number), reason (one line).
@@ -519,10 +668,11 @@ const HELP = `Jobpot helper
   jobpot submit <results.json>        Upload results from a search done in chat
   jobpot summary '<text>'             Save your profile summary
 
-  Used by the agent during a run: profile, feed, browse, result add|list, time-left`
+  Used by the agent during a run: profile, scan, search, describe, browse, result add|list, time-left`
 
 const COMMANDS = {
-  pair, status, settings, schedule, unschedule, summary, run, submit, profile, feed, browse, result, 'time-left': timeLeft,
+  pair, status, settings, schedule, unschedule, summary, run, submit, profile, feed, scan, search, describe, browse, result,
+  'time-left': timeLeft,
 }
 
 const [command, ...args] = process.argv.slice(2)

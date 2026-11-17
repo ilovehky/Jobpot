@@ -59,6 +59,7 @@ export type HelperStatus = {
   devices: Array<{ name: string; connectedAt: number; lastUsedAt: number }>
   settings: HelperSettings | null
   lastRun: {
+    id: string
     startedAt: number
     finishedAt: number
     status: 'completed' | 'time-limit' | 'request-limit' | 'failed'
@@ -71,6 +72,7 @@ export type Tier = 'closest' | 'reach' | 'far'
 
 export type Job = {
   id: string
+  runId: string
   url: string
   title: string
   company: string

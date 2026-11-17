@@ -11,7 +11,8 @@ export const SITE_LABELS: Record<string, string> = {
 const SOURCE_LABELS: Record<string, string> = { ...SITE_LABELS, 'company-pages': 'Company site' }
 
 export function sourceLabel(source: string) {
-  return SOURCE_LABELS[source.toLowerCase()] ?? source
+  const key = source.toLowerCase()
+  return SOURCE_LABELS[key] ?? (key.endsWith(' careers') ? 'Company site' : source)
 }
 
 export function formatClock(time: string, offsetMinutes = 0) {

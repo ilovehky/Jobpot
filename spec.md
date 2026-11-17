@@ -94,7 +94,10 @@ Each step is tested before the next one starts.
    - The unattended agent can only run the `jobpot` command: read the profile, read public company job feeds, use a signed-out browser with safe actions only (no file uploads), and save scored jobs.
    - Usage is counted in Copilot premium requests. Results that fail to upload are retried on the next run.
    - The AI profile summary (Tab 4) is written on the first run. The Matches tab lists uploaded jobs by tier; Apply and resume buttons come in step 4.
-3. **Daily job search (Tab 1 list):** search sites, score, sort into tiers, stop at time/token limits.
+3. **Daily job search (Tab 1 list):** search sites, score, sort into tiers, stop at time/token limits. _Status: built and tested locally._
+   - Helper search commands: `scan` (about 60 company job feeds in seconds), `search` (LinkedIn, Built In, Indeed; last 24 hours), and `describe` (full job description). All skip jobs already shown.
+   - Scoring caps: jobs asking for 2+ more years than the user has can't be Closest fit; Staff/Principal/Lead roles are capped lower for users with under 6 years.
+   - Matches shows the latest search by tier, with earlier matches below. Profile > Daily search edits jobs per day, time and AI limits, sites, and tier cutoffs. The search time is changed through the agent, because it updates the Mac schedule.
 4. **Apply (Tab 1 actions):** autofill in the Jobpot browser profile, "Applied?" prompt, saved answers, tailored resume and cover letter PDFs.
 5. **Applied jobs (Tab 2):** dashboard, Gmail connection and status updates, Draft message button. Needs a Google Cloud project.
 6. **Insights (Tab 3):** rejection analysis and project ideas.

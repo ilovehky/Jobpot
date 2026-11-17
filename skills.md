@@ -50,3 +50,4 @@ Stored in `.github/skills/`, where GitHub Copilot finds them automatically.
 - 2026-11-16: Wrote first drafts of the 4 extra Jobpot skills (autofill, Gmail status, insights, profile).
 - 2026-11-16: Step 1 (website basics) used frontend-design, frameworks-on-cloudflare, wrangler, workers-best-practices, and playwright-cli.
 - 2026-11-16: Step 2 (helper): updated jobpot, jobpot-job-sites, and jobpot-profile skills for the `jobpot` helper commands; used playwright-cli and workers-best-practices.
+- 2026-11-16: Step 3: jobpot-fit-score gained experience and seniority caps; jobpot-job-sites gained the scan/search/describe commands and a verified company feed list (references/companies.md).

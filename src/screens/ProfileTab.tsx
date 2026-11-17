@@ -2,6 +2,7 @@ import { useState, type FormEvent } from 'react'
 import { api, ApiError, type Me } from '../api'
 import { HelperConnect } from '../components/HelperConnect'
 import { ResumeUpload } from '../components/ResumeUpload'
+import { SearchSettings } from '../components/SearchSettings'
 import { TargetsFields, type Targets } from '../components/TargetsFields'
 
 function formatSize(bytes: number) {
@@ -62,6 +63,7 @@ export function ProfileTab({ me, onChanged }: { me: Me; onChanged: () => void })
       </section>
 
       <HelperConnect onConnected={onChanged} />
+      <SearchSettings />
 
       <section aria-labelledby="resume-heading">
         <h2 id="resume-heading">Resume</h2>

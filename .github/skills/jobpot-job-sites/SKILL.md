@@ -7,7 +7,12 @@ description: Which job sites Jobpot searches and how to search each one while si
 
 Search while signed out. The user picks which sites are on (setting keys in brackets below); the defaults are LinkedIn and Indeed.
 
-During an unattended run, use `jobpot browse <command>` for the browser (it wraps `playwright-cli` with a fixed session and only safe commands) and `jobpot feed <system> <company>` for company feeds.
+During an unattended run, use the helper's search commands. They return short lists and skip jobs the user has already seen:
+
+1. `jobpot scan greenhouse:a,b ashby:c lever:d`: many company feeds at once (see [references/companies.md](references/companies.md) for a ready-made list). Fastest and most reliable; do this first.
+2. `jobpot search <linkedin|builtin|indeed> "<title>" "<City, ST>"`: jobs posted on that site in the last 24 hours. One call per title + location pair.
+3. `jobpot describe <url>`: the full description for one job, needed before scoring. Feed jobs are instant; site jobs open a page, so describe the most promising titles first.
+4. `jobpot browse <command>` only when the commands above can't get what you need.
 
 ## Search inputs
 
@@ -22,11 +27,11 @@ Target job titles and locations come from the user's profile. Run one search per
 | Built In [`builtin`] | `https://builtin.com/jobs/hybrid/remote/office/design-ux?search={title}&city={city}&state={state}&country=USA&daysSinceUpdated=1` | Read job cards from `[data-id=job-card]`; open each job page for the description |
 | Wellfound [`wellfound`] | `https://wellfound.com/role/l/{title-slug}/{city-slug}` | Listings often hide the company name; skip jobs without one |
 
-Known behavior (Nov 2026): Indeed blocks signed-out automated browsers, and LinkedIn refuses rapid repeated requests. Read LinkedIn jobs one page at a time with pauses.
+Known behavior (Nov 2026): Indeed blocks signed-out automated browsers (`jobpot search indeed` reports it; skip Indeed for that run). LinkedIn refuses rapid repeated requests, so describe LinkedIn jobs one at a time. Wellfound often hides company names; skip jobs without one.
 
 ## Company career pages [`company-pages`] (public data feeds)
 
-Many companies post jobs through hiring systems that publish public, read-only job feeds. These are officially allowed and more reliable than browsing. Check companies known for the user's field (for product design in the Bay Area, e.g. stripe, figma, databricks, anthropic, plaid on Greenhouse; openai, ramp, linear, harvey on Ashby).
+Many companies post jobs through hiring systems that publish public, read-only job feeds. These are officially allowed and more reliable than browsing. Start from [references/companies.md](references/companies.md) and add companies known for the user's field and location.
 
 | System | Feed URL |
 | --- | --- |
@@ -43,4 +48,5 @@ Title, company, location, work type, posted date, job URL, apply URL, and the fu
 - LinkedIn and Indeed don't allow automated browsing. Keep volume low: pause a few seconds between pages, stop after the daily max, and never sign in while searching.
 - If a site shows a CAPTCHA or blocks access, stop searching that site for this run and report it. Never try to bypass it.
 - Remove duplicates (same company + title + location) across sites, keeping the one with the direct company apply link.
+- Drop jobs outside the user's target locations unless they are remote in the user's country.
 - Skip jobs already shown before or already applied to.

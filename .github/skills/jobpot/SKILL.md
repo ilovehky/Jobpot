@@ -28,12 +28,12 @@ The helper (`helper/jobpot.mjs`) connects this computer to the user's Jobpot acc
 
 ## Daily run (unattended)
 
-The helper starts this with a prompt that lists the limits and the allowed `jobpot` commands. Stop as soon as the time limit is reached; jobs already saved are kept. The helper tracks AI requests and run time.
+The helper starts this with a prompt that lists the limits and the allowed `jobpot` commands. Keep working until less than 1 minute is left or the job limit is reached; jobs already saved are kept. The helper tracks AI requests and run time.
 
 1. **Load the profile:** `jobpot profile` (resume text, target titles and locations, settings, and `seenUrls`).
 2. **Profile summary:** if the profile has no summary, write one following `jobpot-profile` and save it with `jobpot summary '<text>'`.
-3. **Search:** follow `jobpot-job-sites`, using `jobpot feed` and `jobpot browse`. Skip URLs in `seenUrls`.
-4. **Score:** follow `jobpot-fit-score` for each job.
+3. **Search:** follow `jobpot-job-sites`: `jobpot scan` company feeds first, then `jobpot search` each enabled site. These already skip URLs in `seenUrls`.
+4. **Score:** run `jobpot describe <url>` for the most promising jobs first, then follow `jobpot-fit-score`, including its caps.
 5. **Save each job right after scoring:** `jobpot result add '<json>'` with title, company, location, workType (remote|hybrid|onsite|unknown), source, url, applyUrl, postedAt, score (0–100), reason (one line). The website assigns tiers from the user's cutoffs.
 
 ## On-demand tasks
