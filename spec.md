@@ -46,11 +46,11 @@ A public website for job seekers, connected to an AI coding agent (GitHub Copilo
 - **Backend:** Cloudflare, free tier.
 - **Storage:** Cloudflare D1 (database) only. No R2, so no payment card is needed.
   - Accounts, jobs, statuses, and usage.
-  - Uploaded resume file (max 2 MB).
+  - Uploaded resume file (PDF or Word, max 1.9 MB to stay under D1's 2 MB row limit).
   - Tailored resumes and cover letters are saved as text and turned into PDFs on download.
 - **Helper connection:**
-  - The website talks directly to the helper on the same computer, for example to open Apply. Chrome asks the user for permission once.
-  - The helper links to the user's account once with a pairing code, then uploads daily search results.
+  - The helper links to the user's account once with a pairing code (Profile > Connect your computer), then uploads daily search results.
+  - The website talks directly to the helper on the same computer to open Apply (step 4). Chrome asks the user for permission once.
 - **Accounts:** sign up and log in; stay logged in for 7 days.
 - **Stored per user:** resume, portfolio link, demographic info (e.g. race), and the fields saved from autofill.
 - **Sensitive info** may be sent to the AI, but only after the user gives consent.
@@ -76,15 +76,30 @@ A public website for job seekers, connected to an AI coding agent (GitHub Copilo
 ## 5. Risks and things to verify
 
 - **Site rules:** LinkedIn and Indeed don't allow automated browsing. Searching while signed out protects user accounts, but sites may block it or show fewer jobs.
-- **Token report:** it's unconfirmed whether GitHub Copilot reports token counts. Its usage may be measured in requests instead.
+- **Token report:** GitHub Copilot reports premium requests, not tokens, so limits and the Tab 4 report use requests.
 - **Free tier:** Cloudflare's free limits may not cover a public product as it grows.
 - **Gmail:** a public app that reads email needs Google's security review before anyone outside a test list can use it.
-- **Schedule:** the user's computer must be on and awake at search time.
+- **Schedule:** the user's computer must be on at search time; if it's asleep, the Mac runs the search when it wakes.
+- **Local site:** until Jobpot is deployed, the local site must be running for results to upload. Missed uploads retry on the next run.
+- **Password checks on the free plan:** passwords use 100,000 rounds of PBKDF2 (the Workers maximum). The free plan allows 10 ms of processing per request, so sign-up and login need checking once deployed.
 
 ## 6. Build plan
 
-1. **Website basics:** sign up, log in, resume upload, Tab 4 profile.
-2. To be decided after step 1.
+Each step is tested before the next one starts.
+
+1. **Website basics:** sign up, log in (stay logged in 7 days), resume upload, confirm target job titles and locations, Tab 4 profile. Runs locally first, then on Cloudflare. _Status: built and tested locally; not yet deployed._
+   - Resume text is read in the browser (no AI yet). Users type their job titles and locations. The AI profile summary comes in step 2.
+2. **Helper and "jobpot!":** background helper on the user's computer, pairing code, first "jobpot!" sets up the daily schedule. _Status: built and tested locally (Mac only)._
+   - The helper (`helper/jobpot.mjs`) saves settings, installs a Mac schedule that starts 10 minutes early, and runs GitHub Copilot unattended.
+   - The unattended agent can only run the `jobpot` command: read the profile, read public company job feeds, use a signed-out browser with safe actions only (no file uploads), and save scored jobs.
+   - Usage is counted in Copilot premium requests. Results that fail to upload are retried on the next run.
+   - The AI profile summary (Tab 4) is written on the first run. The Matches tab lists uploaded jobs by tier; Apply and resume buttons come in step 4.
+3. **Daily job search (Tab 1 list):** search sites, score, sort into tiers, stop at time/token limits.
+4. **Apply (Tab 1 actions):** autofill in the Jobpot browser profile, "Applied?" prompt, saved answers, tailored resume and cover letter PDFs.
+5. **Applied jobs (Tab 2):** dashboard, Gmail connection and status updates, Draft message button. Needs a Google Cloud project.
+6. **Insights (Tab 3):** rejection analysis and project ideas.
+7. **Usage and privacy:** Tab 4 token report, sensitive-info consent, delete account, privacy policy page.
+8. **Launch:** go live publicly; request Google's review for Gmail access.
 
 ## 7. Open questions
 

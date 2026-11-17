@@ -26,7 +26,7 @@ The profile is what every other Jobpot skill reads. Build it from the resume, ke
 
 ## Profile summary (shown in Tab 4)
 
-3–4 plain sentences describing who the user is professionally: their strengths, the roles they target, and standout results. Regenerate it when the resume changes or important new info is saved.
+3–4 plain sentences describing who the user is professionally: their strengths, the roles they target, and standout results. Regenerate it when the resume changes or important new info is saved. Save it with `jobpot summary '<text>'` (`node helper/jobpot.mjs summary` in chat). Leave out contact details.
 
 ## Updating
 

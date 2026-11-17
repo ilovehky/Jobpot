@@ -1,0 +1,73 @@
+import { useEffect, useState } from 'react'
+import type { Me } from '../api'
+import { MatchesTab } from './MatchesTab'
+import { ProfileTab } from './ProfileTab'
+
+const TABS = [
+  { id: 'matches', label: 'Matches' },
+  { id: 'applied', label: 'Applied' },
+  { id: 'insights', label: 'Insights' },
+  { id: 'profile', label: 'Profile' },
+] as const
+type TabId = (typeof TABS)[number]['id']
+
+const EMPTY_STATES: Record<'applied' | 'insights', { title: string; body: string }> = {
+  applied: {
+    title: 'No applications yet',
+    body: "Jobs you apply to will appear here, with status updates from your Gmail.",
+  },
+  insights: {
+    title: 'Nothing to analyze yet',
+    body: "When applications are rejected or go a month without a reply, you'll see why they didn't match and projects that could close the gap.",
+  },
+}
+
+function tabFromHash(): TabId {
+  const hash = window.location.hash.slice(1)
+  return TABS.some((tab) => tab.id === hash) ? (hash as TabId) : 'matches'
+}
+
+export function AppShell({ me, onChanged, onSignOut }: { me: Me; onChanged: () => void; onSignOut: () => void }) {
+  const [tab, setTab] = useState<TabId>(tabFromHash)
+
+  useEffect(() => {
+    const onHashChange = () => setTab(tabFromHash())
+    window.addEventListener('hashchange', onHashChange)
+    return () => window.removeEventListener('hashchange', onHashChange)
+  }, [])
+
+  const current = TABS.find((t) => t.id === tab)!
+  return (
+    <div className="shell">
+      <header className="topbar">
+        <p className="wordmark">Jobpot</p>
+        <nav aria-label="Main" className="tabs">
+          {TABS.map((t) => (
+            <a key={t.id} href={`#${t.id}`} className="tab" aria-current={t.id === tab ? 'page' : undefined}>
+              {t.label}
+            </a>
+          ))}
+        </nav>
+        <div className="account">
+          <span className="muted">{me.user.name}</span>
+          <button type="button" className="link" onClick={onSignOut}>
+            Log out
+          </button>
+        </div>
+      </header>
+      <main className="page">
+        <h1>{current.label}</h1>
+        {tab === 'profile' ? (
+          <ProfileTab me={me} onChanged={onChanged} />
+        ) : tab === 'matches' ? (
+          <MatchesTab />
+        ) : (
+          <div className="empty">
+            <p className="empty-title">{EMPTY_STATES[tab].title}</p>
+            <p className="muted">{EMPTY_STATES[tab].body}</p>
+          </div>
+        )}
+      </main>
+    </div>
+  )
+}

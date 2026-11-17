@@ -5,7 +5,9 @@ description: Which job sites Jobpot searches and how to search each one while si
 
 # Job sites
 
-Search with the browser tool (`playwright-cli`) while signed out. The user picks which sites are on; the defaults are LinkedIn and Indeed.
+Search while signed out. The user picks which sites are on (setting keys in brackets below); the defaults are LinkedIn and Indeed.
+
+During an unattended run, use `jobpot browse <command>` for the browser (it wraps `playwright-cli` with a fixed session and only safe commands) and `jobpot feed <system> <company>` for company feeds.
 
 ## Search inputs
 
@@ -15,14 +17,16 @@ Target job titles and locations come from the user's profile. Run one search per
 
 | Site | Search URL | Useful parameters |
 | --- | --- | --- |
-| LinkedIn | `https://www.linkedin.com/jobs/search/?keywords={title}&location={location}` | `f_TPR=r86400` past 24 h · `f_WT=1` on-site, `2` remote, `3` hybrid |
-| Indeed | `https://www.indeed.com/jobs?q={title}&l={location}` | `fromage=1` past day · `sort=date` |
+| LinkedIn [`linkedin`] | `https://www.linkedin.com/jobs/search/?keywords={title}&location={location}` | `f_TPR=r86400` past 24 h · `f_WT=1` on-site, `2` remote, `3` hybrid |
+| Indeed [`indeed`] | `https://www.indeed.com/jobs?q={title}&l={location}` | `fromage=1` past day · `sort=date` |
+| Built In [`builtin`] | `https://builtin.com/jobs/hybrid/remote/office/design-ux?search={title}&city={city}&state={state}&country=USA&daysSinceUpdated=1` | Read job cards from `[data-id=job-card]`; open each job page for the description |
+| Wellfound [`wellfound`] | `https://wellfound.com/role/l/{title-slug}/{city-slug}` | Listings often hide the company name; skip jobs without one |
 
-Other boards the user can turn on: Glassdoor, ZipRecruiter, Wellfound (startups), Dice (tech), Built In, and Hacker News "Who is hiring?" (monthly thread).
+Known behavior (Nov 2026): Indeed blocks signed-out automated browsers, and LinkedIn refuses rapid repeated requests. Read LinkedIn jobs one page at a time with pauses.
 
-## Company career pages (public data feeds)
+## Company career pages [`company-pages`] (public data feeds)
 
-Many companies post jobs through hiring systems that publish public, read-only job feeds. These are officially allowed and more reliable than browsing. Use them when the user follows specific companies.
+Many companies post jobs through hiring systems that publish public, read-only job feeds. These are officially allowed and more reliable than browsing. Check companies known for the user's field (for product design in the Bay Area, e.g. stripe, figma, databricks, anthropic, plaid on Greenhouse; openai, ramp, linear, harvey on Ashby).
 
 | System | Feed URL |
 | --- | --- |
