@@ -82,8 +82,9 @@ A public website for job seekers, connected to an AI coding agent (GitHub Copilo
 - **Gmail:** a public app that reads email needs Google's security review before anyone outside a test list can use it. While the Google app is in Testing, only listed test users (up to 100) can connect, and Google expires their access after 7 days, so they reconnect weekly.
 - **Schedule:** the user's computer must be on at search time; if it's asleep, the Mac runs the search when it wakes.
 - **Helper on the deployed site:** browsers may ask the user once to let the Jobpot website reach the helper on their computer (Chrome's local network permission).
-- **Local site:** until Jobpot is deployed, the local site must be running for results to upload. Missed uploads retry on the next run.
-- **Password checks on the free plan:** passwords use 100,000 rounds of PBKDF2 (the Workers maximum). The free plan allows 10 ms of processing per request, so sign-up and login need checking once deployed.
+- **Live vs. local site:** the helper uploads to whichever site it was paired with (`--server`). Missed uploads retry on the next run.
+- **Password checks on the free plan:** passwords use 100,000 rounds of PBKDF2 (the Workers maximum). Checked after deploying: sign-up and login work on the free plan (about 0.3 s each). Recheck if login errors appear as traffic grows.
+- **Google review for Gmail:** Gmail read and draft access are Google's "restricted" permissions. Opening Gmail to anyone needs an owned domain (workers.dev can't be verified), a demo video, permission justifications, and a yearly third-party security assessment, because Jobpot uploads email subjects and quotes.
 
 ## 6. Build plan
 
@@ -122,7 +123,11 @@ Each step is tested before the next one starts.
    - AI consent (a checkbox in the same section, off by default) lets the daily search use work authorization and sponsorship to rank lower the jobs the user can't take. Earlier consent from setup was reset because its meaning changed.
    - Delete account asks for the password, deletes every row for the account, then asks the helper to clear this computer (Gmail access, browser profile, run files, schedules). The helper only does this if its own connection was the one deleted. `jobpot forget` does the same by hand.
    - Privacy policy page at `#privacy`, linked from the login screen and the footer. Contact is through GitHub Issues.
-8. **Launch:** go live publicly; request Google's review for Gmail access.
+8. **Launch:** go live publicly; request Google's review for Gmail access. _Status: live on the free workers.dev address; Gmail stays invite-only for now._
+   - Cloudflare: D1 database `jobpot` (all migrations applied), Google keys stored as Worker secrets, deployed with `npm run deploy`.
+   - The owner's local account (resume, profile, jobs, statuses, answers, documents, usage) was copied to the live database, and the helper was re-paired with the live site.
+   - The website's "Connect your computer" command adds `--server <site address>` when the site isn't the local dev site.
+   - Gmail: the Google app stays in Testing. Add people under Google Cloud Console > Google Auth Platform > Audience > Test users (up to 100); they reconnect weekly. Google's review is deferred until there's an owned domain (see Risks).
 
 ## 7. Open questions
 

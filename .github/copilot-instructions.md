@@ -47,6 +47,7 @@ Product rules live in `spec.md`; read it before building features. When `spec.md
 - D1 allows 100 bound parameters per statement, so bulk inserts are chunked (see `JOB_ROWS_PER_INSERT`).
 - API errors are JSON `{ "error": "<message shown to the user>" }`. Write messages in plain language that say how to fix the problem.
 - Profile list fields (`target_titles`, `target_locations`, `work_types`) are JSON-encoded text columns.
+- The local D1 file in `.wrangler/state/v3/d1/` is named from the `database_id`, so changing that id makes `npm run dev` start on an empty local database.
 - `compatibility_date` in `wrangler.jsonc` must not be newer than what the installed local runtime supports, or `npm run dev` fails.
 - `@cloudflare/vite-plugin` is pinned to 1.x: 2.x requires `cloudflare.config.ts` and ignores `wrangler.jsonc`.
 - Styling is plain CSS in `src/index.css` with design tokens (dawn/ink/marigold palette; Bricolage Grotesque for headings, Atkinson Hyperlegible Next for body; fonts self-hosted via Fontsource).
