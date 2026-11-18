@@ -173,7 +173,7 @@ async function settings(_args, flags) {
       maxRequestsFlag === undefined ? (current?.maxRequests ?? null) : maxRequestsFlag === 'none' ? null : Number(maxRequestsFlag),
     maxJobs: num(flags['max-jobs'], current?.maxJobs ?? 20),
     sites: flags.sites ? flags.sites.split(',').map((s) => s.trim()) : (current?.sites ?? ['linkedin', 'indeed']),
-    aiConsent: flags.consent === undefined ? (current?.aiConsent ?? false) : ['yes', 'true'].includes(flags.consent),
+    ...(flags.consent === undefined ? {} : { aiConsent: ['yes', 'true'].includes(flags.consent) }),
   }
   const unknown = body.sites.filter((s) => !SITES.includes(s))
   if (unknown.length) fail(`Unknown site: ${unknown.join(', ')}. Use: ${SITES.join(', ')}`)
@@ -563,7 +563,7 @@ function buildPrompt(run, profileData) {
   return `Run today's Jobpot daily search. Follow the "jobpot" skill (Daily run section) and the skills it points to (jobpot-job-sites, jobpot-fit-score${needsSummary ? ', jobpot-profile' : ''}).
 
 You are running unattended, so never ask questions. The only command you may run is \`jobpot\`:
-- \`jobpot profile\`: the user's resume text, target titles and locations, settings, and seenUrls (jobs already shown).
+- \`jobpot profile\`: the user's resume text, target titles and locations, work authorization (only if the user shared it), settings, and seenUrls (jobs already shown).
 - \`jobpot scan greenhouse:<slug>,<slug> ashby:<slug> lever:<slug>\`: check many companies' public job feeds at once; returns new jobs matching the target titles.
 - \`jobpot search <linkedin|builtin|indeed> "<job title>" "<City, ST>"\`: jobs posted in the last 24 hours on that site.
 - \`jobpot describe <url>\`: the full job description, needed before scoring.
@@ -800,6 +800,7 @@ async function openApplication({ url, resume }) {
     hosts: [...new Set([...APPLY_HOSTS, hostOf(url)].filter(Boolean))],
     profile: contactFromResume(autofill),
     answers: Object.fromEntries(autofill.answers.map((a) => [a.key, a.answer])),
+    selfId: autofill.selfId ?? {},
   }
   const script = fs.readFileSync(path.join(path.dirname(SCRIPT), 'autofill.js'), 'utf8')
   const version = crypto.createHash('sha256').update(script).digest('hex').slice(0, 12)
@@ -1175,6 +1176,25 @@ function serve() {
         await disconnectGmail()
         return send(200, { ok: true })
       }
+      if (route === '/forget') {
+        // Only clear this computer when its own account was the one deleted (its token no longer works).
+        const config = requireConfig()
+        const check = await fetch(`${config.server}/api/helper/profile`, { headers: { Authorization: `Bearer ${config.token}` } }).catch(() => null)
+        if (check?.status !== 401) {
+          fail(
+            check
+              ? 'This computer is connected to a different Jobpot account, so its Jobpot data was kept.'
+              : "Couldn't confirm the account was deleted, so this computer's Jobpot data was kept.",
+          )
+        }
+        await forgetComputer()
+        send(200, { ok: true })
+        setTimeout(() => {
+          stopService()
+          if (process.env.JOBPOT_NO_LAUNCHD) process.exit(0)
+        }, 300)
+        return
+      }
       if (route === '/insights/generate') {
         queueInsights()
         return send(202, { ok: true })
@@ -1232,6 +1252,32 @@ function installService() {
   console.log('Helper service is running, so the website can open applications and write documents.')
 }
 
+// Removes what Jobpot keeps on this computer: Gmail access, Jobpot browser windows and their saved logins,
+// run files, settings, and the daily schedule. Call stopService() afterwards to stop the helper itself.
+async function forgetComputer() {
+  await disconnectGmail().catch(() => {})
+  for (const session of ['jobpot', APPLY_SESSION, 'jobpot-docs', 'jobpot-gmail', 'jobpot-insights']) {
+    spawnSync('playwright-cli', [`-s=${session}`, 'close'], { stdio: 'ignore', timeout: 20_000 })
+  }
+  fs.rmSync(HOME_DIR, { recursive: true, force: true })
+  if (process.env.JOBPOT_NO_LAUNCHD || process.platform !== 'darwin') return
+  spawnSync('launchctl', ['bootout', `gui/${process.getuid()}/${LAUNCHD_LABEL}`], { stdio: 'ignore' })
+  fs.rmSync(PLIST, { force: true })
+  fs.rmSync(SERVICE_PLIST, { force: true })
+}
+
+function stopService() {
+  if (process.env.JOBPOT_NO_LAUNCHD || process.platform !== 'darwin') return
+  // Detached, because stopping the service ends this process when it is the service.
+  spawn('launchctl', ['bootout', `gui/${process.getuid()}/${SERVICE_LABEL}`], { detached: true, stdio: 'ignore' }).unref()
+}
+
+async function forget() {
+  await forgetComputer()
+  stopService()
+  console.log('Removed Jobpot from this computer: Gmail access, the Jobpot browser profile, run files, settings, and schedules.')
+}
+
 function service([action]) {
   if (action === 'install') return installService()
   if (action === 'remove') {
@@ -1258,12 +1304,13 @@ const HELP = `Jobpot helper
   jobpot insights                     Refresh the Insights tab (why applications didn't work out)
   jobpot serve                        Run the local service the website uses for Apply and documents
   jobpot service install|remove       Keep that service running in the background (Mac)
+  jobpot forget                       Remove Jobpot's data, Gmail access, and schedules from this computer
 
   Used by the agent during a run: profile, scan, search, describe, browse, result add|list, time-left`
 
 const COMMANDS = {
   pair, status, settings, schedule, unschedule, summary, run, submit, profile, feed, scan, search, describe, browse, result,
-  serve, service, gmail: gmailCommand, insights: insightsCommand,
+  serve, service, forget, gmail: gmailCommand, insights: insightsCommand,
   'time-left': timeLeft,
 }
 

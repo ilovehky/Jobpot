@@ -11,6 +11,7 @@
     {
       "binding": "DB",
       "database_name": "jobpot",
+      "database_id": "ea5db96b-9f90-4b95-9388-cf9f4fab6541",
       "migrations_dir": "migrations"
     }
   ],

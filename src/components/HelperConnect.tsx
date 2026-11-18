@@ -64,7 +64,9 @@ export function HelperConnect({ onConnected }: { onConnected: () => void }) {
     }
   }
 
-  const command = code ? `node helper/jobpot.mjs pair ${code.code}` : ''
+  // The helper assumes the local dev site, so other sites (like the live one) name themselves.
+  const serverFlag = window.location.origin === 'http://localhost:5173' ? '' : ` --server ${window.location.origin}`
+  const command = code ? `node helper/jobpot.mjs pair ${code.code}${serverFlag}` : ''
   async function copy() {
     await navigator.clipboard.writeText(command)
     setCopied(true)

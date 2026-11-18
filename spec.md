@@ -37,7 +37,8 @@ A public website for job seekers, connected to an AI coding agent (GitHub Copilo
 
 ### Tab 4 — Profile
 - Shows my personal info. The LLM generates it and keeps it updated as more info gets saved.
-- Daily token-usage report (how much AI usage was spent each day). If Copilot doesn't report tokens, use the number of AI requests instead.
+- Daily AI-usage report: AI requests per day for the last 30 days, split by feature (Copilot reports requests, not tokens).
+- Self-identification (optional), privacy policy link, and Delete account.
 - The user can edit their info.
 
 ## 3. Website details
@@ -52,8 +53,8 @@ A public website for job seekers, connected to an AI coding agent (GitHub Copilo
   - The helper links to the user's account once with a pairing code (Profile > Connect your computer), then uploads daily search results.
   - The website talks directly to the helper on the same computer to open Apply (step 4). Chrome asks the user for permission once.
 - **Accounts:** sign up and log in; stay logged in for 7 days.
-- **Stored per user:** resume, portfolio link, demographic info (e.g. race), and the fields saved from autofill.
-- **Sensitive info** may be sent to the AI, but only after the user gives consent.
+- **Stored per user:** resume, portfolio link, self-identification answers (e.g. race), and the fields saved from autofill.
+- **Sensitive info:** with the user's consent (off by default), the AI may use work authorization and sponsorship. Gender, race, veteran, and disability answers never go to the AI.
 - **Privacy:** a privacy policy page, plus an option to delete the account and all its data.
 - **Device:** desktop first. Edge is the browser used during development.
 - **Fit score:** compares my resume and portfolio against each job description.
@@ -115,7 +116,12 @@ Each step is tested before the next one starts.
 6. **Insights (Tab 3):** rejection analysis and project ideas. _Status: built and tested locally._
    - Uses applications that were rejected or had no reply for 30+ days. Copilot reads the profile and job postings on the user's computer (about 1 AI request) and returns a summary, common gaps (with how many jobs asked for each), longer-term gaps, 2–4 project ideas (size and an example resume line for once it's done), and a reason per job.
    - Refreshes automatically after a daily search when new rejected or no-reply jobs appear, or with **Refresh insights**. When there's no clear pattern yet, it says so instead of guessing.
-7. **Usage and privacy:** Tab 4 token report, sensitive-info consent, delete account, privacy policy page.
+7. **Usage and privacy:** Tab 4 token report, sensitive-info consent, delete account, privacy policy page. _Status: built and tested locally._
+   - Every AI use (search, resume, cover letter, message, insights, Gmail sorting) is logged with its date. Profile > AI usage shows today, the last 30 days as a bar chart, and totals by feature. Past usage was copied in from earlier runs.
+   - Profile > Self-identification: gender, race or ethnicity, veteran, disability, work authorization, and sponsorship, each optional with "Prefer not to say". Autofill picks the matching option on application forms.
+   - AI consent (a checkbox in the same section, off by default) lets the daily search use work authorization and sponsorship to rank lower the jobs the user can't take. Earlier consent from setup was reset because its meaning changed.
+   - Delete account asks for the password, deletes every row for the account, then asks the helper to clear this computer (Gmail access, browser profile, run files, schedules). The helper only does this if its own connection was the one deleted. `jobpot forget` does the same by hand.
+   - Privacy policy page at `#privacy`, linked from the login screen and the footer. Contact is through GitHub Issues.
 8. **Launch:** go live publicly; request Google's review for Gmail access.
 
 ## 7. Open questions

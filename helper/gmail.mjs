@@ -282,6 +282,7 @@ export async function checkGmail(api, { classifyWithAi, log = console.log, reche
   if (unclear.length && classifyWithAi) {
     const result = await classifyWithAi(unclear)
     aiRequests = result.aiRequests ?? 0
+    if (aiRequests) await api('POST', '/helper/usage', { kind: 'gmail', aiRequests }).catch(() => {})
     for (const item of result.items) {
       const email = unclear[item.index]
       if (!email || !item.status) continue

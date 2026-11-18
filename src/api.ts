@@ -1,5 +1,8 @@
 export type WorkType = 'remote' | 'hybrid' | 'onsite'
 
+export type SelfIdKey = 'gender' | 'race' | 'veteran' | 'disability' | 'workAuthorized' | 'needsSponsorship'
+export type SelfId = Partial<Record<SelfIdKey, string>>
+
 export type Me = {
   user: { name: string; email: string }
   profile: {
@@ -10,6 +13,8 @@ export type Me = {
     workTypes: WorkType[]
     summary: string
     summaryUpdatedAt: number | null
+    selfId: SelfId
+    aiConsent: boolean
   }
   resume: { fileName: string; size: number; uploadedAt: number; wordCount: number } | null
 }
@@ -52,7 +57,6 @@ export type HelperSettings = {
   sites: string[]
   closestCutoff: number
   reachCutoff: number
-  aiConsent: boolean
 }
 
 export type HelperStatus = {
@@ -149,3 +153,8 @@ export type Insights = {
 }
 
 export const getInsights = () => api<Insights>('/insights')
+
+export type UsageKind = 'search' | 'resume' | 'cover_letter' | 'outreach' | 'insights' | 'gmail'
+export type UsageEntry = { kind: UsageKind; aiRequests: number; at: number }
+
+export const getUsage = () => api<{ entries: UsageEntry[] }>('/usage')

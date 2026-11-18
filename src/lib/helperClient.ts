@@ -37,6 +37,7 @@ export type ResumeFile = { name: string; type: string; base64: string }
 export const openApplication = (url: string, resume: ResumeFile | null) => call('/apply', { url, resume })
 export const saveTypedAnswers = () => call<{ saved: number }>('/answers', {})
 export const writeDocument = (documentId: string) => call(`/documents/${documentId}/generate`, {})
+export const forgetComputer = () => call('/forget', {})
 
 export async function blobToBase64(blob: Blob) {
   const bytes = new Uint8Array(await blob.arrayBuffer())

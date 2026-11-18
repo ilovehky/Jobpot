@@ -48,6 +48,15 @@ Use the user's cutoffs. Defaults: **Closest fit** 75+, **Reach** 50–74, **Far 
 - One-line reason under 140 characters, e.g. "Strong on Figma and design systems; asks 5+ years vs. your 2." Mention a cap when one applied.
 - Matched and missing required skills (short lists), which Tab 3 uses for mismatch analysis.
 
+## Work authorization
+
+`jobpot profile` includes `workAuthorization` only when the user agreed to share it (`authorizedToWork` and `needsSponsorship`, each `yes`, `no`, or null). When present:
+- If the user needs sponsorship and the job says it won't sponsor, or requires citizenship or a security clearance, cap the score at 40 (Far reach) and say so in the reason.
+- If the user isn't authorized to work in the job's country and the job requires it, apply the same cap.
+- When the job says nothing either way, don't change the score.
+
+Without `workAuthorization`, never guess the user's status.
+
 ## Rules
 
 - Never use demographic info (race, gender, age, disability, veteran status, etc.) in scoring. It is only for filling in application forms.

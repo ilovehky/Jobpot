@@ -3,10 +3,11 @@ import { api, ApiError, getMe, type Me } from './api'
 import { AppShell } from './screens/AppShell'
 import { AuthScreen } from './screens/AuthScreen'
 import { Onboarding } from './screens/Onboarding'
+import { PrivacyPage } from './screens/PrivacyPage'
 
 type State =
   | { status: 'loading' }
-  | { status: 'signed-out' }
+  | { status: 'signed-out'; notice?: string }
   | { status: 'error'; message: string }
   | { status: 'ready'; me: Me }
 
@@ -21,14 +22,18 @@ async function loadState(): Promise<State> {
 
 export default function App() {
   const [state, setState] = useState<State>({ status: 'loading' })
+  const [hash, setHash] = useState(window.location.hash)
 
   const refresh = useCallback(() => loadState().then(setState), [])
 
   useEffect(() => {
     let active = true
     loadState().then((next) => active && setState(next))
+    const onHashChange = () => setHash(window.location.hash)
+    window.addEventListener('hashchange', onHashChange)
     return () => {
       active = false
+      window.removeEventListener('hashchange', onHashChange)
     }
   }, [])
 
@@ -38,6 +43,12 @@ export default function App() {
     setState({ status: 'signed-out' })
   }
 
+  function onDeleted(notice: string) {
+    window.location.hash = ''
+    setState({ status: 'signed-out', notice })
+  }
+
+  if (hash === '#privacy') return <PrivacyPage />
   if (state.status === 'loading') return <p className="loading">Loading…</p>
   if (state.status === 'error') {
     return (
@@ -51,13 +62,13 @@ export default function App() {
       </div>
     )
   }
-  if (state.status === 'signed-out') return <AuthScreen onSignedIn={refresh} />
+  if (state.status === 'signed-out') return <AuthScreen onSignedIn={refresh} notice={state.notice} />
 
   const { me } = state
   const needsOnboarding = !me.resume || !me.profile.targetTitles.length || !me.profile.targetLocations.length
   return needsOnboarding ? (
     <Onboarding me={me} onChanged={refresh} onSignOut={signOut} />
   ) : (
-    <AppShell me={me} onChanged={refresh} onSignOut={signOut} />
+    <AppShell me={me} onChanged={refresh} onSignOut={signOut} onDeleted={onDeleted} />
   )
 }

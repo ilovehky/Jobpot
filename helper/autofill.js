@@ -110,6 +110,53 @@
     return null
   }
 
+  // Self-identification questions use different option wording on every site, so match options by meaning.
+  // Order matters: sponsorship questions often mention "authorization" too.
+  const DECLINE = /decline|prefer not|not wish|don t wish|do not wish|choose not|not to (answer|disclose|say|self identify)|do not want to answer/
+  const NO = /^no\b|\bnot\b|don t|do not/
+  const SELF_ID = [
+    { key: 'needsSponsorship', question: /sponsor/, options: { yes: /^yes/, no: /^no\b/ } },
+    { key: 'workAuthorized', question: /(authori[sz]ed|eligible|legally (able|permitted)|right) to work|work authori[sz]ation/, options: { yes: /^yes/, no: /^no\b/ } },
+    { key: 'veteran', question: /veteran|military service/, options: { yes: /veteran/, no: NO } },
+    { key: 'disability', question: /disabilit/, options: { yes: /^yes|have a disability|had one/, no: NO } },
+    {
+      key: 'race',
+      question: /\brace\b|ethnicit/,
+      options: {
+        hispanic: /^hispanic|^latin/,
+        white: /^white/,
+        black: /black|african american/,
+        asian: /^asian/,
+        native_american: /american indian|alaska native/,
+        pacific_islander: /hawaiian|pacific islander/,
+        two_or_more: /two or more|multiracial/,
+      },
+    },
+    // Asked on its own as "Are you Hispanic or Latino?" before a separate race question.
+    { key: 'race', question: /hispanic|latin[oax]/, options: { hispanic: /^yes/, other: /^no\b/ } },
+    { key: 'gender', question: /\bgender\b|\bsex\b/, skip: /orientation|transgender/, options: { female: /^(female|woman)/, male: /^(male|man)\b/, nonbinary: /non ?binary/ } },
+  ]
+
+  // Returns the index of the option that matches the user's self-identification answer, or -1.
+  function selfIdChoice(question, optionTexts) {
+    const q = normalize(question)
+    const texts = optionTexts.map(normalize)
+    for (const rule of SELF_ID) {
+      if (!rule.question.test(q) || rule.skip?.test(q) || !data.selfId?.[rule.key]) continue
+      let value = data.selfId[rule.key]
+      if (rule.options.other && value !== 'hispanic' && value !== 'decline') value = 'other'
+      const pattern = rule.options[value]
+      const index =
+        value === 'decline'
+          ? texts.findIndex((t) => DECLINE.test(t))
+          : pattern
+            ? texts.findIndex((t) => t && !DECLINE.test(t) && pattern.test(t) && (rule.options.no !== NO || value === 'no' || !NO.test(t)))
+            : -1
+      if (index >= 0) return index
+    }
+    return -1
+  }
+
   function savedAnswer(label) {
     const key = normalize(label)
     if (!key) return null
@@ -183,10 +230,12 @@
       if (el.type === 'radio') {
         if (radiosDone.has(el.name)) continue
         radiosDone.add(el.name)
-        const answer = savedAnswer(groupQuestion(el))
-        if (!answer) continue
         const group = [...document.querySelectorAll(`input[type="radio"][name="${CSS.escape(el.name)}"]`)]
-        const match = group.find((r) => normalize(optionLabel(r)) === normalize(answer))
+        const question = groupQuestion(el)
+        const choice = selfIdChoice(question, group.map(optionLabel))
+        const answer = choice >= 0 ? optionLabel(group[choice]) : savedAnswer(question)
+        if (!answer) continue
+        const match = choice >= 0 ? group[choice] : group.find((r) => normalize(optionLabel(r)) === normalize(answer))
         if (match) {
           match.click()
           filled.set(match, answer)
@@ -206,6 +255,16 @@
           })
         }
         continue
+      }
+      if (el.tagName === 'SELECT') {
+        const choice = selfIdChoice(label, [...el.options].map((o) => o.text))
+        if (choice > 0) {
+          el.value = el.options[choice].value
+          el.dispatchEvent(new Event('change', { bubbles: true }))
+          filled.set(el, el.options[choice].text)
+          count++
+          continue
+        }
       }
       const value = standardValue(el, label) ?? savedAnswer(label)
       if (!value) continue

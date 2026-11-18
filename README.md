@@ -22,7 +22,7 @@ Mac only for now. Needs the GitHub Copilot CLI (`copilot`, signed in) and `playw
 
 Pairing also starts a small background service (`com.jobpot.helper`) that the website uses for **Apply** and for writing tailored resumes and cover letters. Restart it with `node helper/jobpot.mjs service install`; remove it with `node helper/jobpot.mjs service remove`.
 
-The helper keeps its connection, run files, and the Jobpot browser profile (where you sign in to job sites) in `~/.jobpot/` (private to your user). Remove the schedule with `node helper/jobpot.mjs unschedule`.
+The helper keeps its connection, run files, and the Jobpot browser profile (where you sign in to job sites) in `~/.jobpot/` (private to your user). Remove the schedule with `node helper/jobpot.mjs unschedule`, or remove everything Jobpot keeps on this computer (Gmail access, browser profile, run files, schedules) with `node helper/jobpot.mjs forget`. Deleting your account in Profile does this for you.
 
 ## Gmail (site owner setup)
 

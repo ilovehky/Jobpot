@@ -14,6 +14,7 @@ Apply is automated by the helper, not by an AI run, so it is instant and free. T
 3. `helper/autofill.js` runs on each page of that window, only on known application sites (Greenhouse, Lever, Ashby, Workday, LinkedIn, and others) and the job's own site. On pages that look like an application form, it:
    - fills standard fields (name, email, phone, location, LinkedIn, portfolio) from the resume header and profile;
    - attaches the resume file to resume upload fields;
+   - fills voluntary self-identification questions (gender, race or ethnicity, veteran, disability, work authorization, sponsorship) from Profile > Self-identification, matching options by meaning because every site words them differently (e.g. "I am not a protected veteran");
    - fills questions the user answered before when the question text matches;
    - outlines empty fields, focuses the first required one, and shows a "Next empty field" button.
 4. Answers the user types are collected and saved to their profile (Profile > Saved answers) when they answer the website's "Applied?" prompt.
@@ -25,5 +26,6 @@ To change matching or add sites, edit `helper/autofill.js` and `APPLY_HOSTS` in 
 - **Never click Submit**, Apply, or Send. The user always submits.
 - Don't change answers the user typed.
 - If a page has multiple steps, fill each step the same way and let the user click Next.
+- Self-identification answers come only from what the user set in Profile; leave a question empty when it's "Not set". They're used only for filling forms, never sent to the AI.
 - Never save passwords, Social Security numbers, bank or card details, or answers longer than 300 characters.
 - If the page breaks or blocks automation, the user fills it in by hand. The website's "Applied?" prompt still lets them record the outcome.

@@ -1,4 +1,5 @@
 import { Hono, type Context } from 'hono'
+import { usageStatement } from './privacy'
 import { readJson, requireUser, type AppEnv } from './session'
 import { ValidationError } from './validate'
 
@@ -112,13 +113,16 @@ helperInsightsRoutes.put('/', async (c) => {
   const jobIds = Array.isArray(body.jobIds) ? JSON.stringify(body.jobIds.filter((id: unknown) => typeof id === 'string').slice(0, 500)) : null
   const error = typeof body.error === 'string' ? body.error.slice(0, 300) : ''
   const aiRequests = Number.isInteger(body.aiRequests) ? (body.aiRequests as number) : null
+  const userId = c.get('userId')
   await c.env.DB.prepare(
     `INSERT INTO insights (user_id, status, content, job_ids, error, ai_requests, updated_at) VALUES (?, ?, COALESCE(?, ''), COALESCE(?, '[]'), ?, ?, ?)
      ON CONFLICT (user_id) DO UPDATE SET status = excluded.status,
        content = COALESCE(?, insights.content), job_ids = COALESCE(?, insights.job_ids),
        error = excluded.error, ai_requests = excluded.ai_requests, updated_at = excluded.updated_at`,
   )
-    .bind(c.get('userId'), status, content, jobIds, error, aiRequests, Date.now(), content, jobIds)
+    .bind(userId, status, content, jobIds, error, aiRequests, Date.now(), content, jobIds)
     .run()
+  const usage = status === 'pending' ? null : usageStatement(c.env.DB, userId, 'insights', aiRequests)
+  if (usage) await usage.run()
   return c.json({ ok: true })
 })

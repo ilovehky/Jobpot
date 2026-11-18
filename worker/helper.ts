@@ -3,6 +3,7 @@ import { createMiddleware } from 'hono/factory'
 import { newSessionToken, sha256Hex } from './auth'
 import { applyRoutes, helperApplyRoutes } from './apply'
 import { helperInsightsRoutes, insightsRoutes } from './insights'
+import { aiWorkAuthorization, helperUsageRoutes, parseSelfId, privacyRoutes, usageStatement } from './privacy'
 import { readJson, requireUser, type AppEnv } from './session'
 import { helperStatusRoutes, statusRoutes } from './status'
 import { ValidationError } from './validate'
@@ -26,7 +27,6 @@ type SettingsRow = {
   sites: string
   closest_cutoff: number
   reach_cutoff: number
-  ai_consent: number
   updated_at: number
 }
 
@@ -41,7 +41,6 @@ function settingsJson(row: SettingsRow | null) {
     sites: JSON.parse(row.sites) as string[],
     closestCutoff: row.closest_cutoff,
     reachCutoff: row.reach_cutoff,
-    aiConsent: row.ai_consent === 1,
     updatedAt: row.updated_at,
   }
 }
@@ -107,6 +106,9 @@ helperRoutes.route('/helper/gmail', helperStatusRoutes)
 helperRoutes.route('/', insightsRoutes)
 helperRoutes.use('/helper/insights', requireHelper)
 helperRoutes.route('/helper/insights', helperInsightsRoutes)
+helperRoutes.route('/', privacyRoutes)
+helperRoutes.use('/helper/usage', requireHelper)
+helperRoutes.route('/helper/usage', helperUsageRoutes)
 
 // Website (logged-in browser) routes.
 
@@ -269,7 +271,8 @@ helperRoutes.get('/helper/profile', requireHelper, async (c) => {
   const userId = c.get('userId')
   const [profile, settings, seen] = await Promise.all([
     c.env.DB.prepare(
-      `SELECT u.name, p.portfolio_url, p.linkedin_url, p.target_titles, p.target_locations, p.work_types, p.summary, r.text
+      `SELECT u.name, p.portfolio_url, p.linkedin_url, p.target_titles, p.target_locations, p.work_types, p.summary, p.self_id,
+              p.ai_consent, r.text
        FROM users u JOIN profiles p ON p.user_id = u.id LEFT JOIN resumes r ON r.user_id = u.id WHERE u.id = ?`,
     )
       .bind(userId)
@@ -281,6 +284,8 @@ helperRoutes.get('/helper/profile', requireHelper, async (c) => {
         target_locations: string
         work_types: string
         summary: string
+        self_id: string
+        ai_consent: number
         text: string | null
       }>(),
     readSettings(c, userId),
@@ -298,6 +303,7 @@ helperRoutes.get('/helper/profile', requireHelper, async (c) => {
     workTypes: JSON.parse(profile.work_types),
     summary: profile.summary,
     resumeText: profile.text ?? '',
+    workAuthorization: aiWorkAuthorization(parseSelfId(profile.self_id), profile.ai_consent),
     settings: settingsJson(settings),
     seenUrls: seen.results.map((r) => r.url),
   })
@@ -319,17 +325,24 @@ helperRoutes.put('/helper/settings', requireHelper, async (c) => {
   if (!Array.isArray(body.sites) || !body.sites.length) throw new ValidationError('Pick at least one job site.')
   const sites = SITES.filter((site) => (body.sites as unknown[]).includes(site))
   if (sites.length !== body.sites.length) throw new ValidationError(`Job sites must be from: ${SITES.join(', ')}.`)
-  if (typeof body.aiConsent !== 'boolean') throw new ValidationError('Say whether sensitive info may be sent to the AI.')
+  if (body.aiConsent !== undefined && typeof body.aiConsent !== 'boolean') {
+    throw new ValidationError('Say yes or no to letting the AI use your work authorization.')
+  }
 
-  await c.env.DB.prepare(
-    `INSERT INTO settings (user_id, search_time, timezone, max_minutes, max_requests, max_jobs, sites, ai_consent, updated_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-     ON CONFLICT (user_id) DO UPDATE SET search_time = excluded.search_time, timezone = excluded.timezone,
-       max_minutes = excluded.max_minutes, max_requests = excluded.max_requests, max_jobs = excluded.max_jobs,
-       sites = excluded.sites, ai_consent = excluded.ai_consent, updated_at = excluded.updated_at`,
-  )
-    .bind(c.get('userId'), searchTime, timezone, maxMinutes, maxRequests, maxJobs, JSON.stringify(sites), body.aiConsent ? 1 : 0, Date.now())
-    .run()
+  const userId = c.get('userId')
+  const now = Date.now()
+  await c.env.DB.batch([
+    c.env.DB.prepare(
+      `INSERT INTO settings (user_id, search_time, timezone, max_minutes, max_requests, max_jobs, sites, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+       ON CONFLICT (user_id) DO UPDATE SET search_time = excluded.search_time, timezone = excluded.timezone,
+         max_minutes = excluded.max_minutes, max_requests = excluded.max_requests, max_jobs = excluded.max_jobs,
+         sites = excluded.sites, updated_at = excluded.updated_at`,
+    ).bind(userId, searchTime, timezone, maxMinutes, maxRequests, maxJobs, JSON.stringify(sites), now),
+    ...(typeof body.aiConsent === 'boolean'
+      ? [c.env.DB.prepare('UPDATE profiles SET ai_consent = ?, updated_at = ? WHERE user_id = ?').bind(body.aiConsent ? 1 : 0, now, userId)]
+      : []),
+  ])
   return c.json({ ok: true })
 })
 
@@ -396,6 +409,8 @@ helperRoutes.post('/helper/runs', requireHelper, async (c) => {
     )
   }
   const results = await c.env.DB.batch(statements)
+  const usage = usageStatement(c.env.DB, userId, 'search', aiRequests)
+  if (usage) await usage.run()
   const added = results.slice(1).reduce((sum, r) => sum + (r.meta.changes ?? 0), 0)
   await c.env.DB.prepare('UPDATE runs SET jobs_found = ? WHERE id = ?').bind(added, runId).run()
   return c.json({ ok: true, runId, added, skipped: jobs.length - added }, 201)

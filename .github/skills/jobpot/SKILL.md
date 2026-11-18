@@ -19,11 +19,11 @@ The helper (`helper/jobpot.mjs`) connects this computer to the user's Jobpot acc
    - **Not connected:** ask the user to open Jobpot > Profile > Connect your computer, then run the `pair` command shown there. Stop until they have.
    - **Connected with a schedule:** go to step 4.
 2. **First-time setup.** Ask the user (one form) for:
-   - Consent to send sensitive info (e.g. demographics) to the AI. Without consent, never include it in prompts.
+   - Whether the AI may use their work authorization and sponsorship answers (from Profile > Self-identification) to rank lower the jobs they can't take. Gender, race, veteran, and disability answers never go to the AI. The user can change this later in Profile.
    - Search time (default 9:00 AM). The run starts 10 minutes earlier.
    - Max run time (default 10 min), max AI requests (or none), max jobs per day (default 20).
    - Job sites: `linkedin`, `indeed`, `company-pages`, `wellfound`, `builtin` (see `jobpot-job-sites`).
-3. Save with `node helper/jobpot.mjs settings --time 09:00 --max-minutes 10 --max-requests none --max-jobs 20 --sites linkedin,builtin --consent yes`. This also installs the Mac schedule. Remind the user the Mac must be on and awake at run time.
+3. Save with `node helper/jobpot.mjs settings --time 09:00 --max-minutes 10 --max-requests none --max-jobs 20 --sites linkedin,builtin --consent yes|no`. This also installs the Mac schedule. Remind the user the Mac must be on and awake at run time.
 4. Offer to search now with `node helper/jobpot.mjs run` (add `--minutes N` for a shorter run). It runs Copilot unattended and uploads results to the Matches tab. Report the summary line it prints.
 
 ## Daily run (unattended)

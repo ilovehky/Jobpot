@@ -1,4 +1,5 @@
 import { Hono } from 'hono'
+import { parseSelfId, usageStatement } from './privacy'
 import { readJson, requireUser, type AppEnv } from './session'
 import { ValidationError } from './validate'
 
@@ -130,11 +131,11 @@ helperApplyRoutes.get('/autofill', async (c) => {
   const userId = c.get('userId')
   const [profile, answers] = await Promise.all([
     c.env.DB.prepare(
-      `SELECT u.name, u.email, p.portfolio_url, p.linkedin_url, p.target_locations, r.text
+      `SELECT u.name, u.email, p.portfolio_url, p.linkedin_url, p.target_locations, p.self_id, r.text
        FROM users u JOIN profiles p ON p.user_id = u.id LEFT JOIN resumes r ON r.user_id = u.id WHERE u.id = ?`,
     )
       .bind(userId)
-      .first<{ name: string; email: string; portfolio_url: string; linkedin_url: string; target_locations: string; text: string | null }>(),
+      .first<{ name: string; email: string; portfolio_url: string; linkedin_url: string; target_locations: string; self_id: string; text: string | null }>(),
     c.env.DB.prepare('SELECT question_key, question, answer FROM answers WHERE user_id = ?')
       .bind(userId)
       .all<{ question_key: string; question: string; answer: string }>(),
@@ -147,6 +148,7 @@ helperApplyRoutes.get('/autofill', async (c) => {
     linkedinUrl: profile.linkedin_url,
     targetLocations: JSON.parse(profile.target_locations),
     resumeText: (profile.text ?? '').slice(0, 3000),
+    selfId: parseSelfId(profile.self_id),
     answers: answers.results.map((a) => ({ key: a.question_key, question: a.question, answer: a.answer })),
   })
 })
@@ -200,12 +202,15 @@ helperApplyRoutes.put('/documents/:id', async (c) => {
   const error = typeof body.error === 'string' ? body.error.slice(0, 300) : ''
   const aiRequests = typeof body.aiRequests === 'number' && Number.isInteger(body.aiRequests) ? body.aiRequests : null
   const draftId = typeof body.gmailDraftId === 'string' ? body.gmailDraftId.slice(0, 100) : null
-  const result = await c.env.DB.prepare(
+  const userId = c.get('userId')
+  const updated = await c.env.DB.prepare(
     `UPDATE documents SET status = ?, content = CASE WHEN ? = 'ready' THEN ? ELSE content END, error = ?, ai_requests = ?,
-       gmail_draft_id = COALESCE(?, gmail_draft_id), updated_at = ? WHERE id = ? AND user_id = ?`,
+       gmail_draft_id = COALESCE(?, gmail_draft_id), updated_at = ? WHERE id = ? AND user_id = ? RETURNING kind`,
   )
-    .bind(status, status, content, error, aiRequests, draftId, Date.now(), c.req.param('id'), c.get('userId'))
-    .run()
-  if (!result.meta.changes) return c.json({ error: 'Document not found.' }, 404)
+    .bind(status, status, content, error, aiRequests, draftId, Date.now(), c.req.param('id'), userId)
+    .first<{ kind: DocKind }>()
+  if (!updated) return c.json({ error: 'Document not found.' }, 404)
+  const usage = usageStatement(c.env.DB, userId, updated.kind, aiRequests)
+  if (usage) await usage.run()
   return c.json({ ok: true })
 })

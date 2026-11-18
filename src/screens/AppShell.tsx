@@ -18,7 +18,9 @@ function tabFromHash(): TabId {
   return TABS.some((tab) => tab.id === hash) ? (hash as TabId) : 'matches'
 }
 
-export function AppShell({ me, onChanged, onSignOut }: { me: Me; onChanged: () => void; onSignOut: () => void }) {
+type Props = { me: Me; onChanged: () => void; onSignOut: () => void; onDeleted: (notice: string) => void }
+
+export function AppShell({ me, onChanged, onSignOut, onDeleted }: Props) {
   const [tab, setTab] = useState<TabId>(tabFromHash)
 
   useEffect(() => {
@@ -49,7 +51,7 @@ export function AppShell({ me, onChanged, onSignOut }: { me: Me; onChanged: () =
       <main className="page">
         <h1>{current.label}</h1>
         {tab === 'profile' ? (
-          <ProfileTab me={me} onChanged={onChanged} />
+          <ProfileTab me={me} onChanged={onChanged} onDeleted={onDeleted} />
         ) : tab === 'matches' ? (
           <MatchesTab />
         ) : tab === 'applied' ? (
@@ -58,6 +60,11 @@ export function AppShell({ me, onChanged, onSignOut }: { me: Me; onChanged: () =
           <InsightsTab />
         )}
       </main>
+      <footer className="footer">
+        <a className="link" href="#privacy">
+          Privacy policy
+        </a>
+      </footer>
     </div>
   )
 }

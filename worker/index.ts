@@ -4,6 +4,7 @@ import { csrf } from 'hono/csrf'
 import { HTTPException } from 'hono/http-exception'
 import { hashPassword, sha256Hex, verifyPassword } from './auth'
 import { helperRoutes } from './helper'
+import { parseSelfId } from './privacy'
 import { SESSION_COOKIE, readJson, requireUser, startSession, type AppEnv } from './session'
 import {
   ValidationError,
@@ -101,6 +102,8 @@ type ProfileRow = {
   work_types: string
   summary: string
   summary_updated_at: number | null
+  self_id: string
+  ai_consent: number
   file_name: string | null
   size: number | null
   uploaded_at: number | null
@@ -110,6 +113,7 @@ type ProfileRow = {
 app.get('/me', requireUser, async (c) => {
   const row = await c.env.DB.prepare(
     `SELECT u.name, u.email, p.portfolio_url, p.linkedin_url, p.target_titles, p.target_locations, p.work_types, p.summary, p.summary_updated_at,
+            p.self_id, p.ai_consent,
             r.file_name, r.size, r.uploaded_at, r.text
      FROM users u
      JOIN profiles p ON p.user_id = u.id
@@ -130,6 +134,8 @@ app.get('/me', requireUser, async (c) => {
       workTypes: JSON.parse(row.work_types),
       summary: row.summary,
       summaryUpdatedAt: row.summary_updated_at,
+      selfId: parseSelfId(row.self_id),
+      aiConsent: row.ai_consent === 1,
     },
     resume: row.file_name
       ? {

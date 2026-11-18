@@ -22,7 +22,7 @@ The profile is what every other Jobpot skill reads. Build it from the resume, ke
 - Skills, tools, and domains.
 - Education and certifications.
 - **Saved answers:** application questions and the user's answers (from `jobpot-apply-autofill`).
-- **Demographics** (optional): only what the user enters themselves.
+- **Self-identification** (optional, Profile tab): gender, race or ethnicity, veteran, disability, work authorization, and sponsorship, only as the user enters them. Autofill uses all of them; the AI sees only work authorization and sponsorship, and only with the user's consent.
 
 ## Profile summary (shown in Tab 4)
 

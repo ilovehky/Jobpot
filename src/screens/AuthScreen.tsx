@@ -3,8 +3,8 @@ import { api, ApiError } from '../api'
 
 type Mode = 'signup' | 'login'
 
-export function AuthScreen({ onSignedIn }: { onSignedIn: () => void }) {
-  const [mode, setMode] = useState<Mode>('signup')
+export function AuthScreen({ onSignedIn, notice }: { onSignedIn: () => void; notice?: string }) {
+  const [mode, setMode] = useState<Mode>(notice ? 'login' : 'signup')
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
 
@@ -44,6 +44,11 @@ export function AuthScreen({ onSignedIn }: { onSignedIn: () => void }) {
 
       <main className="auth-panel">
         <div className="auth-form-wrap">
+          {notice && (
+            <p className="notice" role="status">
+              {notice}
+            </p>
+          )}
           <h1>{mode === 'signup' ? 'Create your account' : 'Log in'}</h1>
           <form onSubmit={onSubmit} className="stack" noValidate={false}>
             {mode === 'signup' && (
@@ -99,7 +104,12 @@ export function AuthScreen({ onSignedIn }: { onSignedIn: () => void }) {
               </>
             )}
           </p>
-          <p className="fine-print">You'll stay logged in on this device for 7 days.</p>
+          <p className="fine-print">
+            You'll stay logged in on this device for 7 days.{' '}
+            <a className="link" href="#privacy">
+              Privacy policy
+            </a>
+          </p>
         </div>
       </main>
     </div>

@@ -1,16 +1,21 @@
 import { useState, type FormEvent } from 'react'
 import { api, ApiError, type Me } from '../api'
+import { DeleteAccount } from '../components/DeleteAccount'
 import { HelperConnect } from '../components/HelperConnect'
 import { ResumeUpload } from '../components/ResumeUpload'
 import { SavedAnswers } from '../components/SavedAnswers'
 import { SearchSettings } from '../components/SearchSettings'
+import { SelfIdentification } from '../components/SelfIdentification'
 import { TargetsFields, type Targets } from '../components/TargetsFields'
+import { UsageReport } from '../components/UsageReport'
 
 function formatSize(bytes: number) {
   return bytes < 1_000_000 ? `${Math.round(bytes / 1000)} KB` : `${(bytes / 1_000_000).toFixed(1)} MB`
 }
 
-export function ProfileTab({ me, onChanged }: { me: Me; onChanged: () => void }) {
+type Props = { me: Me; onChanged: () => void; onDeleted: (notice: string) => void }
+
+export function ProfileTab({ me, onChanged, onDeleted }: Props) {
   const [name, setName] = useState(me.user.name)
   const [portfolioUrl, setPortfolioUrl] = useState(me.profile.portfolioUrl)
   const [linkedinUrl, setLinkedinUrl] = useState(me.profile.linkedinUrl)
@@ -65,6 +70,7 @@ export function ProfileTab({ me, onChanged }: { me: Me; onChanged: () => void })
 
       <HelperConnect onConnected={onChanged} />
       <SearchSettings />
+      <UsageReport />
 
       <section aria-labelledby="resume-heading">
         <h2 id="resume-heading">Resume</h2>
@@ -143,7 +149,9 @@ export function ProfileTab({ me, onChanged }: { me: Me; onChanged: () => void })
           </button>
         </div>
       </form>
+      <SelfIdentification me={me} onChanged={onChanged} />
       <SavedAnswers />
+      <DeleteAccount onDeleted={onDeleted} />
     </div>
   )
 }
