@@ -2,6 +2,7 @@ import { useState, type FormEvent } from 'react'
 import { api, ApiError, type Me } from '../api'
 import { HelperConnect } from '../components/HelperConnect'
 import { ResumeUpload } from '../components/ResumeUpload'
+import { SavedAnswers } from '../components/SavedAnswers'
 import { SearchSettings } from '../components/SearchSettings'
 import { TargetsFields, type Targets } from '../components/TargetsFields'
 
@@ -142,6 +143,7 @@ export function ProfileTab({ me, onChanged }: { me: Me; onChanged: () => void })
           </button>
         </div>
       </form>
+      <SavedAnswers />
     </div>
   )
 }

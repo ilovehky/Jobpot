@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react'
 import type { Me } from '../api'
+import { AppliedTab } from './AppliedTab'
+import { InsightsTab } from './InsightsTab'
 import { MatchesTab } from './MatchesTab'
 import { ProfileTab } from './ProfileTab'
 
@@ -10,17 +12,6 @@ const TABS = [
   { id: 'profile', label: 'Profile' },
 ] as const
 type TabId = (typeof TABS)[number]['id']
-
-const EMPTY_STATES: Record<'applied' | 'insights', { title: string; body: string }> = {
-  applied: {
-    title: 'No applications yet',
-    body: "Jobs you apply to will appear here, with status updates from your Gmail.",
-  },
-  insights: {
-    title: 'Nothing to analyze yet',
-    body: "When applications are rejected or go a month without a reply, you'll see why they didn't match and projects that could close the gap.",
-  },
-}
 
 function tabFromHash(): TabId {
   const hash = window.location.hash.slice(1)
@@ -61,11 +52,10 @@ export function AppShell({ me, onChanged, onSignOut }: { me: Me; onChanged: () =
           <ProfileTab me={me} onChanged={onChanged} />
         ) : tab === 'matches' ? (
           <MatchesTab />
+        ) : tab === 'applied' ? (
+          <AppliedTab />
         ) : (
-          <div className="empty">
-            <p className="empty-title">{EMPTY_STATES[tab].title}</p>
-            <p className="muted">{EMPTY_STATES[tab].body}</p>
-          </div>
+          <InsightsTab />
         )}
       </main>
     </div>

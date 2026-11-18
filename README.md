@@ -20,7 +20,19 @@ Mac only for now. Needs the GitHub Copilot CLI (`copilot`, signed in) and `playw
 2. Say "jobpot!" to your AI agent in this folder, or run `node helper/jobpot.mjs settings --time 09:00` yourself. This installs a Mac schedule that starts the search 10 minutes early.
 3. Run a search now with `node helper/jobpot.mjs run --minutes 2`. See all commands with `node helper/jobpot.mjs help`.
 
-The helper keeps its connection and run files in `~/.jobpot/` (private to your user). Remove the schedule with `node helper/jobpot.mjs unschedule`.
+Pairing also starts a small background service (`com.jobpot.helper`) that the website uses for **Apply** and for writing tailored resumes and cover letters. Restart it with `node helper/jobpot.mjs service install`; remove it with `node helper/jobpot.mjs service remove`.
+
+The helper keeps its connection, run files, and the Jobpot browser profile (where you sign in to job sites) in `~/.jobpot/` (private to your user). Remove the schedule with `node helper/jobpot.mjs unschedule`.
+
+## Gmail (site owner setup)
+
+Gmail status updates need a Google OAuth client, created once by whoever runs the site:
+
+1. In Google Cloud Console, create a project, enable the Gmail API, and set up the OAuth consent screen (External; add test users while in Testing).
+2. Create an OAuth client of type **Desktop app** and download its JSON.
+3. Put its values in `.dev.vars` (git-ignored) for local use: `GOOGLE_CLIENT_ID="…"` and `GOOGLE_CLIENT_SECRET="…"`. For the deployed site, use `npx wrangler secret put GOOGLE_CLIENT_ID` (and the secret).
+
+Users then click **Connect Gmail** on the Applied tab, or run `node helper/jobpot.mjs gmail connect`.
 
 ## Other commands
 

@@ -5,7 +5,21 @@ description: How Jobpot drafts cold outreach messages to recruiters, hiring mana
 
 # Cold messages
 
-Draft only. Never send. Gmail drafts are saved to the user's Gmail Drafts folder; LinkedIn drafts are shown with a Copy button.
+Draft only. Never send. Gmail drafts are saved to the user's Gmail Drafts folder with no recipient (the user adds one); LinkedIn drafts are shown with a Copy button on the Applied tab.
+
+When the helper runs this unattended (the **Draft message** button), get the user's details with `jobpot profile` and the job with `jobpot describe <url>`, then reply with exactly these sections:
+
+```
+===LINKEDIN===
+<connection note, 200 characters max>
+===SUBJECT===
+<email subject>
+===EMAIL===
+<email body, signed with the user's name and portfolio link>
+===END===
+```
+
+The recipient is usually unknown, so use a neutral greeting ("Hi there,") rather than inventing a name.
 
 Inputs: the job, the company, the recipient (name and role, if known), and the user's profile. Personalize with one specific, true detail about the recipient, team, or company.
 

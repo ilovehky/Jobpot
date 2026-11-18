@@ -1,7 +1,10 @@
 import { Hono, type Context } from 'hono'
 import { createMiddleware } from 'hono/factory'
 import { newSessionToken, sha256Hex } from './auth'
+import { applyRoutes, helperApplyRoutes } from './apply'
+import { helperInsightsRoutes, insightsRoutes } from './insights'
 import { readJson, requireUser, type AppEnv } from './session'
+import { helperStatusRoutes, statusRoutes } from './status'
 import { ValidationError } from './validate'
 
 const PAIRING_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'
@@ -77,7 +80,7 @@ function httpUrl(value: unknown, label: string, required: boolean): string {
   throw new ValidationError(`${label} must be a web link starting with https://`)
 }
 
-const requireHelper = createMiddleware<AppEnv>(async (c, next) => {
+export const requireHelper = createMiddleware<AppEnv>(async (c, next) => {
   const header = c.req.header('Authorization') ?? ''
   const token = header.startsWith('Bearer ') ? header.slice(7).trim() : ''
   if (!token) return c.json({ error: 'This computer is not connected. Run the pair command again.' }, 401)
@@ -94,6 +97,16 @@ const requireHelper = createMiddleware<AppEnv>(async (c, next) => {
 })
 
 export const helperRoutes = new Hono<AppEnv>()
+
+helperRoutes.route('/', applyRoutes)
+helperRoutes.use('/helper/apply/*', requireHelper)
+helperRoutes.route('/helper/apply', helperApplyRoutes)
+helperRoutes.route('/', statusRoutes)
+helperRoutes.use('/helper/gmail/*', requireHelper)
+helperRoutes.route('/helper/gmail', helperStatusRoutes)
+helperRoutes.route('/', insightsRoutes)
+helperRoutes.use('/helper/insights', requireHelper)
+helperRoutes.route('/helper/insights', helperInsightsRoutes)
 
 // Website (logged-in browser) routes.
 
@@ -175,8 +188,8 @@ helperRoutes.get('/jobs', requireUser, async (c) => {
   const userId = c.get('userId')
   const [jobs, settings] = await Promise.all([
     c.env.DB.prepare(
-      `SELECT id, run_id, url, title, company, location, work_type, source, apply_url, posted_at, score, reason, found_at
-       FROM jobs WHERE user_id = ? ORDER BY score DESC, found_at DESC LIMIT 200`,
+      `SELECT id, run_id, url, title, company, location, work_type, source, apply_url, posted_at, score, reason, found_at, applied_at
+       FROM jobs WHERE user_id = ? ORDER BY score DESC, found_at DESC LIMIT 300`,
     )
       .bind(userId)
       .all<{
@@ -193,6 +206,7 @@ helperRoutes.get('/jobs', requireUser, async (c) => {
         score: number
         reason: string
         found_at: number
+        applied_at: number | null
       }>(),
     readSettings(c, userId),
   ])
@@ -214,6 +228,7 @@ helperRoutes.get('/jobs', requireUser, async (c) => {
       score: j.score,
       reason: j.reason,
       foundAt: j.found_at,
+      appliedAt: j.applied_at,
       tier: j.score >= closest ? 'closest' : j.score >= reach ? 'reach' : 'far',
     })),
   })

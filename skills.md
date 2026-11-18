@@ -34,11 +34,11 @@ Stored in `.github/skills/`, where GitHub Copilot finds them automatically.
 | [jobpot](.github/skills/jobpot/SKILL.md) | Full daily flow, started with "jobpot!" | `spec.md` | Draft |
 | [jobpot-job-sites](.github/skills/jobpot-job-sites/SKILL.md) | Which sites to search and how | LinkedIn/Indeed public search URLs; Greenhouse, Lever, Ashby public job feeds | Draft |
 | [jobpot-fit-score](.github/skills/jobpot-fit-score/SKILL.md) | 0–100 score and tier for resume vs. job | Weighted hiring rubrics used by recruiters | Draft |
-| [jobpot-resume-cover-letter](.github/skills/jobpot-resume-cover-letter/SKILL.md) | Tailored resume and cover letter | ATS-friendly resume and cover letter guides (2025–2026) | Draft |
-| [jobpot-cold-messages](.github/skills/jobpot-cold-messages/SKILL.md) | LinkedIn and Gmail outreach drafts | LinkedIn note limits; recruiter outreach guides | Draft |
-| [jobpot-apply-autofill](.github/skills/jobpot-apply-autofill/SKILL.md) | Fill application forms; save new answers (Tab 1) | `spec.md` | Draft |
-| [jobpot-gmail-status](.github/skills/jobpot-gmail-status/SKILL.md) | Update application status from Gmail (Tab 2) | Common hiring-system email patterns | Draft |
-| [jobpot-insights](.github/skills/jobpot-insights/SKILL.md) | Mismatch analysis and project ideas (Tab 3) | `spec.md` | Draft |
+| [jobpot-resume-cover-letter](.github/skills/jobpot-resume-cover-letter/SKILL.md) | Tailored resume and cover letter | ATS-friendly resume and cover letter guides (2025–2026) | Tested |
+| [jobpot-cold-messages](.github/skills/jobpot-cold-messages/SKILL.md) | LinkedIn and Gmail outreach drafts (Applied tab > Draft message) | LinkedIn note limits; recruiter outreach guides | Built |
+| [jobpot-apply-autofill](.github/skills/jobpot-apply-autofill/SKILL.md) | Documents how the helper fills forms and saves answers (Tab 1); the work is done by `helper/autofill.js` | `spec.md` | Built |
+| [jobpot-gmail-status](.github/skills/jobpot-gmail-status/SKILL.md) | Update application status from Gmail (Tab 2); rules in `helper/gmail.mjs`, AI only for unclear emails | Common hiring-system email patterns | Built |
+| [jobpot-insights](.github/skills/jobpot-insights/SKILL.md) | Mismatch analysis and project ideas (Tab 3) | `spec.md` | Tested |
 | [jobpot-profile](.github/skills/jobpot-profile/SKILL.md) | Profile from resume; onboarding; Tab 4 summary | `spec.md` | Draft |
 
 "Draft" means written but not yet tested with real runs.
@@ -51,3 +51,6 @@ Stored in `.github/skills/`, where GitHub Copilot finds them automatically.
 - 2026-11-16: Step 1 (website basics) used frontend-design, frameworks-on-cloudflare, wrangler, workers-best-practices, and playwright-cli.
 - 2026-11-16: Step 2 (helper): updated jobpot, jobpot-job-sites, and jobpot-profile skills for the `jobpot` helper commands; used playwright-cli and workers-best-practices.
 - 2026-11-16: Step 3: jobpot-fit-score gained experience and seniority caps; jobpot-job-sites gained the scan/search/describe commands and a verified company feed list (references/companies.md).
+- 2026-11-17: Step 4: jobpot-resume-cover-letter gained the text format the PDF maker reads (tested live); jobpot-apply-autofill now documents the helper's code-based autofill. Used playwright-cli.
+- 2026-11-17: Step 5: jobpot-gmail-status documents the helper's Gmail check (rules first, AI for unclear emails); jobpot-cold-messages gained the unattended output format.
+- 2026-11-17: Step 6: jobpot-insights documents the unattended run and JSON output; tested live on placeholder data.

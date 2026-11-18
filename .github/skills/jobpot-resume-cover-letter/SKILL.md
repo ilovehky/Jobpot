@@ -5,7 +5,20 @@ description: How Jobpot writes a tailored resume and cover letter for a specific
 
 # Tailored resume and cover letter
 
-Inputs: the user's original resume, portfolio link, saved profile info, and the job description. Output is plain text in the structure below; the website turns it into a PDF on download.
+Inputs: the user's original resume, portfolio link, saved profile info, and the job description. When the helper runs this unattended, get them with `jobpot profile` and `jobpot describe <url>`.
+
+## Output format
+
+Plain text that the website turns into a PDF. Use only these line types:
+
+- `# Full Name` (first line)
+- The line right after the name: contact details separated by ` · `
+- `## Section` for section headings
+- `### Role, Company` for a role or project heading; put location and dates on the next plain line
+- `- ` for bullets
+- Plain lines for paragraphs; a blank line separates paragraphs
+
+No tables, columns, emoji, or Markdown links (write URLs as plain text). Bold and italics are ignored.
 
 ## Honesty first
 
@@ -22,21 +35,42 @@ Only use experience, skills, dates, and results that exist in the user's materia
 Structure (single column, standard headings so hiring software can read it):
 
 ```
-Name
-Location · Email · Phone · Portfolio · LinkedIn
-
-Summary (2–3 lines aimed at this job)
-Experience (newest first: Title, Company, Dates, 3–5 bullets each)
-Projects (optional, if relevant)
-Skills
-Education
+# Full Name
+City, ST · email · phone · portfolio · linkedin
+## Summary
+2–3 lines aimed at this job.
+## Experience
+### Title, Company
+City, ST · 2024 – 2026
+- 3–5 bullets per role, newest role first
+## Projects
+(optional, if relevant)
+## Skills
+## Education
 ```
 
 No tables, columns, icons, or images.
 
 ## Cover letter
 
-200–350 words, under one page.
+200–350 words, under one page. Format:
+
+```
+# Full Name
+City, ST · email · phone · portfolio
+Month Day, Year
+
+Dear Hiring Team,   (or the hiring manager's name if known)
+
+Opening paragraph.
+
+Body paragraph(s).
+
+Closing paragraph.
+
+Sincerely,
+Full Name
+```
 
 1. **Opening:** the role, and one specific reason the user is interested in this company.
 2. **Body (1–2 short paragraphs):** connect 2–3 of the job's top needs to concrete results from the user's experience. "You're looking for X; at Company I did Y, which led to Z."

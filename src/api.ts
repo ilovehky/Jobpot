@@ -84,9 +84,68 @@ export type Job = {
   score: number
   reason: string
   foundAt: number
+  appliedAt: number | null
   tier: Tier
 }
+
+export type DocKind = 'resume' | 'cover_letter' | 'outreach'
+
+export type DocSummary = {
+  id: string
+  jobId: string
+  kind: DocKind
+  status: 'pending' | 'ready' | 'failed'
+  error: string
+  gmailDraftId?: string | null
+  updatedAt: number
+}
+
+export type SavedAnswer = { key: string; question: string; answer: string; updatedAt: number }
 
 export const getMe = () => api<Me>('/me')
 export const getHelperStatus = () => api<HelperStatus>('/helper/status')
 export const getJobs = () => api<{ jobs: Job[]; cutoffs: { closest: number; reach: number } }>('/jobs')
+export const getDocuments = () => api<{ documents: DocSummary[] }>('/documents')
+export const getDocument = (id: string) => api<DocSummary & { content: string }>(`/documents/${id}`)
+export const getAnswers = () => api<{ answers: SavedAnswer[] }>('/answers')
+
+export type AppStatus = 'applied' | 'in_review' | 'assessment' | 'interview' | 'offer' | 'rejected'
+
+export type AppliedJob = {
+  id: string
+  title: string
+  company: string
+  location: string
+  url: string
+  source: string
+  score: number
+  appliedAt: number
+  status: AppStatus
+  displayStatus: AppStatus | 'no_reply'
+  statusAt: number | null
+  needsReview: boolean
+  suggestedStatus: AppStatus | null
+  lastUpdate: { source: 'gmail' | 'manual'; quote: string; subject: string; emailDate: number | null } | null
+}
+
+export const getApplied = () => api<{ jobs: AppliedJob[] }>('/applied')
+
+export type InsightsContent = {
+  total: number
+  summary: string
+  jobs: Array<{ jobId: string; why: string }>
+  gaps: Array<{ name: string; count: number }>
+  longTerm: Array<{ name: string; count: number }>
+  projects: Array<{ title: string; what: string; closes: string[]; size: string; resumeLine: string }>
+}
+
+export type Insights = {
+  status: 'none' | 'pending' | 'ready' | 'failed'
+  error: string
+  updatedAt: number | null
+  content: InsightsContent | null
+  jobs: Array<{ id: string; title: string; company: string; url: string; outcome: 'rejected' | 'no_reply' }>
+  newSinceAnalysis: number
+}
+
+export const getInsights = () => api<Insights>('/insights')

@@ -5,7 +5,13 @@ description: How Jobpot analyzes rejected jobs and jobs with no reply after a mo
 
 # Insights: mismatch analysis and project ideas
 
-Input: jobs marked **Rejected** or **No reply** (30+ days since applying), each with its job description and fit-score results (matched and missing skills), plus the user's current profile.
+Input: jobs marked **Rejected** or **No reply** (30+ days since applying), each with its title, company, fit score and reason, plus the user's current profile.
+
+## How it runs
+
+The helper runs this unattended after a daily search when new rejected or no-reply jobs appear, when the user clicks **Refresh insights**, or with `jobpot insights`. Read the profile with `jobpot profile` and up to 10 job descriptions with `jobpot describe <url>` (old postings may be gone; then rely on the title and fit reason). Reply with JSON in the shape the helper's prompt gives: `summary`, `jobs` (why per job), `gaps`, `longTerm`, and `projects` (title, what, closes, size, resumeLine). Gap names are 2–5 words.
+
+If there's no real pattern (few jobs, or postings unavailable), say so in the summary and return empty `gaps` and `projects`; don't invent evidence.
 
 ## 1. Per-job explanation
 

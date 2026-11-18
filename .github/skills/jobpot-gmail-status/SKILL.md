@@ -7,6 +7,15 @@ description: How Jobpot reads the user's Gmail to update the status of jobs they
 
 Gmail access is read-only plus creating drafts. Never send, delete, archive, or label emails.
 
+## How it runs
+
+The helper does this (`helper/gmail.mjs`), during each daily search and when the user clicks **Check Gmail now** on the Applied tab (`jobpot gmail check` in a terminal):
+
+1. Signs in with Google once (`jobpot gmail connect`); the refresh token stays in `~/.jobpot/gmail.json` on the user's computer.
+2. For each company the user applied to, searches Gmail for emails since the application date that mention the company, skipping emails it has already read.
+3. Classifies each email with the rules below. Only emails the rules can't decide are sent to Copilot, in one batch, with this skill. The AI replies with a status, confidence, and a one-sentence quote.
+4. Uploads only the status, email date, subject, and that one quote. The full email never leaves the computer except for unclear emails sent to the AI.
+
 ## Find relevant emails
 
 Only look at emails received since the oldest applied job's date. Search for:
@@ -34,7 +43,7 @@ Match on company name first, then job title. If one company has several applied 
 
 A status only moves forward, except Rejected, which can follow any status. If an email is unclear, keep the current status and flag it as "Needs review".
 
-## Output per update
+## Output per update (when asked to classify)
 
 Job, new status, email date, the sentence that shows the status (one line), and confidence (high / low). Low-confidence updates are shown to the user to confirm.
 
