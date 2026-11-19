@@ -139,6 +139,7 @@ _None right now._
 2. For insights, go to job forums like Blind, Reddit, and Stack Overflow Jobs during rejected eval for more information, suggested projects and advice
 3. For missing JD, search website like level.fyi and glassdoor for compensation and role details.
 4. Take company rating from glassdoor and others into score calc
+5. Add manual job entry upload to tab 1
    
 ## 8. Random ideas (don't explore now)
 1. Filter "Like" jobs and generate a separate scale you can switch bwt "most resume matching" or "most liked jobs"

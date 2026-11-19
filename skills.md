@@ -55,3 +55,4 @@ Stored in `.github/skills/`, where GitHub Copilot finds them automatically.
 - 2026-11-17: Step 5: jobpot-gmail-status documents the helper's Gmail check (rules first, AI for unclear emails); jobpot-cold-messages gained the unattended output format.
 - 2026-11-17: Step 6: jobpot-insights documents the unattended run and JSON output; tested live on placeholder data.
 - 2026-11-17: Step 7: jobpot (setup consent), jobpot-fit-score (work authorization cap), jobpot-apply-autofill (self-identification), and jobpot-profile updated for self-identification and AI consent.
+- 2026-11-18: Used jobpot to start an on-demand search with the helper's saved settings.
