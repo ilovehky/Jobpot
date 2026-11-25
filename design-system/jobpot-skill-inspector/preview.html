@@ -1,0 +1,438 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light">
+  <title>What shaped Jobpot? | Skill inspector</title>
+  <style>
+    :root {
+      --canvas: #f3f6fb; --paper: #fff; --ink: #192a3d; --muted: #526378;
+      --line: #d3dce9; --accent: #4353bd; --accent-soft: #eef0ff;
+      --green: #116b5b; --green-soft: #e9f5f0; --amber: #805219; --amber-soft: #fff4df;
+      --font: 'Avenir Next', 'Segoe UI', system-ui, sans-serif;
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; background: var(--canvas); color: var(--ink); font: 16px/1.55 var(--font); }
+    button, input { font: inherit; }
+    button, a, summary { cursor: pointer; touch-action: manipulation; }
+    button { color: inherit; }
+    button, a { transition: background-color 160ms, border-color 160ms, color 160ms; }
+    :focus-visible { outline: 3px solid var(--accent); outline-offset: 4px; }
+    a { color: var(--accent); text-underline-offset: 3px; overflow-wrap: anywhere; }
+    h1, h2, h3, p { margin-top: 0; }
+    h1 { font-size: clamp(2rem, 4.5vw, 3.5rem); line-height: 1.12; letter-spacing: -.045em; margin-bottom: 14px; }
+    h2 { font-size: 1.45rem; line-height: 1.3; letter-spacing: -.025em; margin-bottom: 10px; }
+    h3 { font-size: 1rem; margin-bottom: 12px; }
+    p { max-width: 72ch; }
+    [hidden] { display: none !important; }
+    .skip { position: absolute; left: 16px; top: -80px; background: white; padding: 12px; z-index: 2; }
+    .skip:focus { top: 16px; }
+    .topbar { background: var(--paper); border-bottom: 1px solid var(--line); }
+    .topbar-inner { max-width: 1380px; margin: auto; padding: 18px 36px; display: flex; justify-content: space-between; gap: 16px; align-items: center; }
+    .brand { display: flex; align-items: center; gap: 12px; font-size: 1.1rem; font-weight: 750; }
+    .brand svg { width: 30px; height: 30px; color: var(--accent); }
+    .small { font-size: .875rem; color: var(--muted); }
+    .shell { max-width: 1380px; margin: auto; padding: 38px 36px 32px; }
+    .intro { display: flex; justify-content: space-between; align-items: flex-start; gap: 32px; }
+    .intro p { color: var(--muted); max-width: 61ch; margin-bottom: 24px; }
+    .snapshot { padding: 12px 16px; background: var(--paper); border: 1px solid var(--line); border-radius: 8px; white-space: nowrap; }
+    .snapshot strong { display: block; font-size: .9rem; }
+    .toolbar { display: flex; gap: 12px; justify-content: space-between; align-items: center; margin: 4px 0 22px; }
+    .views { display: flex; flex-wrap: wrap; gap: 6px; }
+    .views button { border: 0; padding: 11px 18px; border-radius: 8px; background: transparent; font-weight: 650; min-height: 44px; }
+    .views button:hover { background: #e5eaf4; }
+    .views button[aria-pressed="true"] { background: var(--ink); color: white; }
+    .scope { border-left: 3px solid var(--accent); padding: 2px 0 2px 14px; margin: 0 0 24px; color: var(--muted); }
+    .scope p { margin: 0; }
+    .workspace { display: grid; grid-template-columns: 265px minmax(0, 1fr); gap: 24px; align-items: start; }
+    .outputs { background: var(--paper); border: 1px solid var(--line); border-radius: 12px; overflow: hidden; }
+    .outputs-header { padding: 20px 18px 12px; }
+    .outputs-header h2 { font-size: 1rem; margin-bottom: 3px; }
+    .outputs-header p { margin: 0; }
+    .output-list { padding: 0 8px 8px; display: grid; gap: 4px; }
+    .output-button { text-align: left; display: block; width: 100%; border: 1px solid transparent; border-radius: 8px; background: transparent; padding: 14px 12px; min-height: 72px; }
+    .output-button:hover { background: var(--canvas); }
+    .output-button[aria-pressed="true"] { background: var(--accent-soft); border-color: #c9cff8; }
+    .output-button strong { display: block; font-size: .95rem; }
+    .output-button span { display: block; font-size: .8rem; color: var(--muted); margin-top: 3px; }
+    .filter-title { margin: 0 0 8px; font-size: .875rem; color: var(--muted); }
+    .filters { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 22px; }
+    .filter { border: 1px solid var(--line); background: var(--paper); border-radius: 24px; padding: 8px 13px; min-height: 44px; font-size: .875rem; }
+    .filter:hover, .filter[aria-pressed="true"] { border-color: var(--accent); background: var(--accent-soft); color: var(--accent); }
+    .detail { min-width: 0; }
+    .feature { background: var(--paper); border: 1px solid var(--line); border-radius: 14px; overflow: hidden; }
+    .feature-head { padding: 25px 28px 0; }
+    .feature-meta { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 16px; }
+    .badge { display: inline-flex; align-items: center; gap: 6px; font-size: .8rem; font-weight: 650; border-radius: 5px; padding: 4px 9px; }
+    .badge.generated { background: var(--accent-soft); color: var(--accent); }
+    .badge.guided { background: var(--green-soft); color: var(--green); }
+    .badge.code { background: #edf1f6; color: #46576b; }
+    .badge.checked { background: var(--amber-soft); color: var(--amber); }
+    .feature-head > p { color: var(--muted); margin-bottom: 24px; }
+    .specimen { padding: 18px 22px; margin: 0 28px 24px; background: var(--canvas); border-radius: 8px; }
+    .swatches { display: flex; flex-wrap: wrap; gap: 18px; }
+    .swatch { display: flex; align-items: center; gap: 10px; }
+    .swatch i { display: block; width: 36px; height: 36px; border-radius: 50%; border: 1px solid #192a3d30; }
+    .swatch b { display: block; font-size: .875rem; }
+    .swatch span { font-size: .8rem; color: var(--muted); }
+    .type-line { margin: 14px 0 0; padding-top: 12px; border-top: 1px solid var(--line); font-size: .875rem; }
+    .path { display: grid; grid-template-columns: 1fr 1.1fr 1fr; gap: 28px; padding: 0 28px 28px; }
+    .step { position: relative; min-width: 0; }
+    .step:not(:last-child)::after { content: ''; position: absolute; top: 12px; right: -21px; width: 10px; height: 10px; border-top: 1.5px solid #8392a8; border-right: 1.5px solid #8392a8; transform: rotate(45deg); }
+    .step h3 { display: flex; gap: 8px; align-items: center; }
+    .step h3 svg { width: 18px; height: 18px; flex-shrink: 0; color: var(--muted); }
+    .step p { font-size: .9rem; color: var(--muted); margin-bottom: 0; }
+    .source-name { display: block; width: fit-content; border: 1px solid #c9cff8; background: #f6f7ff; color: var(--accent); font-size: .825rem; font-weight: 650; padding: 5px 9px; border-radius: 5px; margin-bottom: 8px; overflow-wrap: anywhere; }
+    .source-name.neutral { border-color: var(--line); color: var(--muted); background: var(--canvas); }
+    .source-caption { margin-top: 10px; }
+    .boundary { border-top: 1px solid var(--line); background: #fbfcfe; padding: 16px 28px; font-size: .875rem; }
+    .boundary strong { color: var(--amber); }
+    .evidence { margin-top: 24px; }
+    .evidence-heading { display: flex; justify-content: space-between; align-items: baseline; gap: 16px; }
+    .evidence-heading h2 { font-size: 1.1rem; }
+    .evidence-row { display: grid; grid-template-columns: 150px minmax(0, 1fr); gap: 20px; border-top: 1px solid var(--line); padding: 16px 0; font-size: .9rem; }
+    .evidence-row p { margin: 5px 0 0; color: var(--muted); }
+    .evidence-kind { font-size: .8rem; font-weight: 650; color: var(--green); }
+    .evidence-kind.request { color: var(--amber); }
+    .relation { margin-top: 28px; background: var(--paper); border: 1px solid var(--line); border-radius: 12px; padding: 22px 28px; }
+    .relation h2 { font-size: 1.1rem; }
+    .relation p { color: var(--muted); font-size: .9rem; margin-bottom: 12px; }
+    .relation details { border-top: 1px solid var(--line); padding-top: 14px; margin-top: 18px; }
+    .relation summary { min-height: 32px; font-size: .9rem; font-weight: 650; }
+    .relation details p { margin-top: 12px; margin-bottom: 0; }
+    .legend { display: flex; flex-wrap: wrap; gap: 16px; margin-top: 30px; padding: 22px 0; border-top: 1px solid var(--line); }
+    .legend-item { flex: 1 1 220px; }
+    .legend-item p { margin: 8px 0 0; font-size: .8rem; color: var(--muted); }
+    .library { border-top: 1px solid var(--line); padding-top: 20px; }
+    .library summary { font-weight: 650; min-height: 44px; }
+    .library-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 8px 24px; padding: 12px 0; }
+    .library-grid div { display: flex; justify-content: space-between; gap: 12px; border-bottom: 1px solid var(--line); padding: 8px 0; font-size: .8rem; }
+    .library-grid span { color: var(--muted); white-space: nowrap; }
+    footer { display: flex; justify-content: space-between; gap: 24px; margin-top: 24px; font-size: .8rem; color: var(--muted); }
+    footer p { margin-bottom: 0; }
+    .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0; }
+    @media (max-width: 1100px) {
+      .workspace { grid-template-columns: 230px minmax(0, 1fr); gap: 18px; }
+      .path { grid-template-columns: 1fr; gap: 22px; }
+      .step:not(:last-child)::after { display: none; }
+      .step { padding-left: 15px; border-left: 2px solid var(--line); }
+    }
+    @media (max-width: 760px) {
+      .topbar-inner { padding: 16px 20px; }
+      .topbar-inner > span { display: none; }
+      .shell { padding: 28px 20px; }
+      .intro { display: block; }
+      .snapshot { display: none; }
+      .toolbar { align-items: start; }
+      .toolbar > span { display: none; }
+      .views { width: 100%; }
+      .views button { flex: 1 1 auto; padding: 10px 12px; }
+      .workspace { grid-template-columns: 1fr; }
+      .output-list { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .output-button { padding: 12px 10px; }
+      .feature-head { padding: 22px 20px 0; }
+      .feature-meta { flex-wrap: wrap; }
+      .specimen { margin: 0 20px 20px; padding: 16px; }
+      .path { padding: 0 20px 22px; }
+      .boundary, .relation { padding: 18px 20px; }
+      .evidence-row { grid-template-columns: 1fr; gap: 5px; }
+      .evidence-heading { display: block; }
+      footer { flex-direction: column; gap: 12px; }
+    }
+    @media (prefers-reduced-motion: reduce) { *, *::before, *::after { transition: none !important; } }
+  </style>
+</head>
+<body>
+  <a class="skip" href="#main">Skip to skill inspector</a>
+  <header class="topbar">
+    <div class="topbar-inner">
+      <div class="brand">
+        <svg viewBox="0 0 32 32" fill="none" aria-hidden="true"><rect x="2" y="3" width="9" height="9" rx="3" stroke="currentColor" stroke-width="2"/><rect x="2" y="20" width="9" height="9" rx="3" stroke="currentColor" stroke-width="2"/><rect x="21" y="11.5" width="9" height="9" rx="3" fill="currentColor"/><path d="M11 7.5h4v17h-4m4-8.5h6" stroke="currentColor" stroke-width="2"/></svg>
+        <span>Jobpot / Skill inspector</span>
+      </div>
+      <span class="small">Standalone report. Not a live agent monitor.</span>
+    </div>
+  </header>
+  <main class="shell" id="main">
+    <div class="intro">
+      <div>
+        <h1>What shaped Jobpot?</h1>
+        <p>Follow a part of the project back to its skills, the agent's decisions, and the evidence we actually have.</p>
+      </div>
+      <div class="snapshot"><strong>Evidence snapshot</strong><span class="small">Reviewed 23 Nov 2026</span></div>
+    </div>
+    <div class="toolbar">
+      <nav class="views" aria-label="Parts of the project">
+        <button type="button" data-view="design" aria-pressed="true">Visual design</button>
+        <button type="button" data-view="features" aria-pressed="false">Jobpot features</button>
+        <button type="button" data-view="inspector" aria-pressed="false">This page</button>
+      </nav>
+      <span class="small">Connections, not contribution percentages</span>
+    </div>
+    <div class="scope" id="scope"></div>
+    <div class="workspace">
+      <aside class="outputs" aria-label="Choose a result">
+        <div class="outputs-header"><h2>Choose a result</h2><p class="small" id="result-count"></p></div>
+        <div class="output-list" id="outputs"></div>
+      </aside>
+      <div class="detail">
+        <p class="filter-title">Show results connected to</p>
+        <div class="filters" id="filters" role="group" aria-label="Filter by skill"></div>
+        <div id="feature"></div>
+        <section class="evidence" aria-labelledby="evidence-title">
+          <div class="evidence-heading"><h2 id="evidence-title">Why we can say this</h2><span class="small">Open a source to inspect it</span></div>
+          <div id="evidence"></div>
+        </section>
+        <section class="relation" id="relation" aria-labelledby="relation-title">
+          <h2 id="relation-title">Are the design skills working against each other?</h2>
+          <p><strong>No cross-skill interference is established by this review.</strong> Both were loaded for the demo. UI/UX Pro Max supplied a preset and generator; frontend-design supplied visual guidance. Their exact influence on each decision is unmeasured.</p>
+          <details>
+            <summary>A real inconsistency worth reviewing</summary>
+            <p>The demo's generated guide says "no shadows", but its component examples and saved preview use shadows. This is an observable inconsistency within the generated design guidance, not proof that the two skills conflicted or caused a failed result.</p>
+            <p><a href="../jobpot-token-demo/MASTER.md" target="_blank" rel="noopener">Open generated guide</a> / <a href="../jobpot-token-demo/preview.html" target="_blank" rel="noopener">Open actual demo</a></p>
+          </details>
+        </section>
+      </div>
+    </div>
+    <section class="legend" aria-label="How to read the labels">
+      <div class="legend-item"><span class="badge generated">Generator output</span><p>A skill's script produced a starting asset. The agent still selected the input and integrated it.</p></div>
+      <div class="legend-item"><span class="badge guided">Skill-guided agent work</span><p>The agent wrote or interpreted something with skill guidance available. This is not skill-only work.</p></div>
+      <div class="legend-item"><span class="badge code">Code-run behavior</span><p>Ordinary code performs this action without an AI call at that moment. Its development may still have used skills.</p></div>
+      <div class="legend-item"><span class="badge checked">Verification</span><p>A tool checked the result. Checking a result is different from creating it.</p></div>
+    </section>
+    <details class="library">
+      <summary>Installed does not mean used: the development skill library</summary>
+      <p class="small">The project log lists these 13 development skills as locally installed. This report does not verify the current installation or claim that all were used. Jobpot's own task skills are a separate group.</p>
+      <div class="library-grid" id="library"></div>
+    </details>
+    <footer>
+      <p>Based on <a href="../../skills.md" target="_blank" rel="noopener">the skill log</a>, selected source files, and a reviewed demo-session record. Historical sessions were not exhaustively audited.</p>
+      <p>No account data, AI calls, analytics, or saved settings. Selection stays in this page. Refresh resets it.</p>
+    </footer>
+    <div class="sr-only" role="status" aria-live="polite" aria-atomic="true" id="status"></div>
+    <noscript><p>This inspector needs JavaScript to show the connections. Enable JavaScript, or open <a href="../../skills.md">the skill log</a> for the written record.</p></noscript>
+  </main>
+  <script>
+    const skills = {
+      ux: 'UI/UX Pro Max', frontend: 'frontend-design', browser: 'playwright-cli',
+      daily: 'jobpot', sites: 'jobpot-job-sites', fit: 'jobpot-fit-score', profile: 'jobpot-profile',
+      resume: 'jobpot-resume-cover-letter', outreach: 'jobpot-cold-messages',
+      gmail: 'jobpot-gmail-status', insights: 'jobpot-insights', apply: 'jobpot-apply-autofill'
+    };
+    const sources = {
+      log: { label: 'Project skill log', href: '../../skills.md' },
+      tokens: { label: 'Saved demo tokens', href: '../jobpot-token-demo/tokens.css' },
+      master: { label: 'Generated demo guide', href: '../jobpot-token-demo/MASTER.md' },
+      demo: { label: 'Actual interactive demo', href: '../jobpot-token-demo/preview.html' },
+      css: { label: 'Original app styles', href: '../../src/index.css' },
+      helper: { label: 'Helper prompts and behavior', href: '../../helper/jobpot.mjs' },
+      gmail: { label: 'Gmail rule-first logic', href: '../../helper/gmail.mjs' },
+      autofill: { label: 'Autofill implementation', href: '../../helper/autofill.js' },
+      applySkill: { label: 'Autofill skill definition', href: '../../.github/skills/jobpot-apply-autofill/SKILL.md' }
+    };
+    const features = [
+      {
+        id: 'tokens', view: 'design', title: 'Demo colors & typography', subtitle: 'The blue / green token demo', kind: 'generated', label: 'Generator output', certainty: 'Generator call recorded',
+        skills: ['ux', 'frontend'], sourceText: 'UI/UX Pro Max produced the preset. Both design skills were successfully loaded in the reviewed demo session.',
+        agent: 'The agent chose the query "job board dashboard approachable" and requested saved tokens and a preview. It did not independently invent this starting palette.',
+        output: 'The generator produced the initial guide, CSS/JSON design values, and preview. The saved demo uses blue, green, Fira Code, and Fira Sans.',
+        description: 'This is the clearest connection between a skill tool and a visible part of the project.',
+        boundary: 'The generator origin is recorded. How much frontend-design improved the result is not measured.',
+        specimen: 'demo',
+        evidence: [
+          { type: 'Verified session event', text: 'Successful loads of UI/UX Pro Max, frontend-design, and playwright-cli were recorded on 19 Nov. The session records a generator command with --preview and --tokens css.', source: 'log', note: 'The linked log is a project summary; the historical session record was reviewed locally and is not included in this page.' },
+          { type: 'Direct file evidence', text: 'The saved CSS contains #0369A1, #16A34A, Fira Code, and Fira Sans.', source: 'tokens' }
+        ]
+      },
+      {
+        id: 'controls', view: 'design', title: 'Demo switch & save button', subtitle: 'Agent-added interactions', kind: 'guided', label: 'Skill-guided agent work', certainty: 'Manual additions documented',
+        skills: ['ux', 'frontend', 'browser'], sourceText: 'The design skills supplied guidance and shared design values. playwright-cli supplied browser-testing guidance.',
+        agent: 'After the user requested a toggle and button, the agent added the controls, event handling, and confirmation text to the generated page.',
+        output: 'An accessible daily-alerts switch and a save button demonstrate interaction states. They do not save real Jobpot settings.',
+        description: 'The generator supplied the starting page. The agent then implemented the requested interaction.',
+        boundary: 'Agent-authored does not mean skill-free. We cannot isolate which loaded instruction determined each detail.',
+        evidence: [
+          { type: 'Documented authorship', text: 'The guide explicitly says the interactive controls were added by hand after generation and would be replaced by regenerating the preview.', source: 'master' },
+          { type: 'Direct file evidence', text: 'The preview contains the switch, save button, and change/click handlers. State is limited to the current page.', source: 'demo' }
+        ]
+      },
+      {
+        id: 'original', view: 'design', title: 'Original Jobpot app', subtitle: 'Ink / marigold, not the token demo', kind: 'guided', label: 'Skill-guided agent work', certainty: 'Skill use documented',
+        skills: ['frontend'], sourceText: 'The project log names frontend-design as a development skill used for the initial website.',
+        agent: 'The agent implemented the product screens and styles around the project requirements. A decision-by-decision history has not been verified here.',
+        output: 'The original app has its own dawn, ink, and marigold palette, with Bricolage Grotesque and Atkinson Hyperlegible Next.',
+        description: 'Do not mistake the later generated token demo for the design system used by the original app.',
+        boundary: 'There is no reviewed evidence that UI/UX Pro Max generated the original app palette. That does not prove it had no influence.',
+        specimen: 'original',
+        evidence: [
+          { type: 'Project record', text: 'The 16 Nov website-basics entry records frontend-design along with hosting, backend, and browser skills.', source: 'log' },
+          { type: 'Direct file evidence', text: 'The app styles define --ink: #18213d and --marigold: #f2b035, with different font families from the later demo.', source: 'css' }
+        ]
+      },
+      {
+        id: 'checks', view: 'design', title: 'Demo browser checks', subtitle: 'Verification, not art direction', kind: 'checked', label: 'Verification', certainty: 'Skill loaded; checks reported',
+        skills: ['browser'], sourceText: 'playwright-cli was successfully loaded in the demo session.',
+        agent: 'The agent chose browser checks and reported reviewing desktop/mobile layout, keyboard focus, and the interactive controls.',
+        output: 'The record reports checks of the finished page. Browser automation is not the source of its palette or visual personality.',
+        description: 'Some skills help verify the result rather than generate what you see.',
+        boundary: 'Reported checks are not a complete accessibility audit or proof of overall design quality.',
+        evidence: [
+          { type: 'Verified session event', text: 'The reviewed demo session includes a successful playwright-cli skill load.', source: 'log', note: 'The project log summarizes usage; the local load event was reviewed separately.' },
+          { type: 'Project record', text: 'The demo change-log entry records desktop/mobile and keyboard checks in the integrated browser.', source: 'log' }
+        ]
+      },
+      {
+        id: 'search', view: 'features', title: 'Daily search & fit scores', subtitle: 'Skills guide the agent at run time', kind: 'guided', label: 'Skill-guided agent work', certainty: 'Skills requested in code',
+        skills: ['daily', 'sites', 'fit', 'profile'], sourceText: 'The helper asks for jobpot, jobpot-job-sites, and jobpot-fit-score. jobpot-profile is requested when a profile summary is missing.',
+        agent: 'The agent chooses promising listings, reads descriptions, interprets fit using the scoring instructions, and writes reasons.',
+        output: 'The helper collects, sorts, and uploads the saved job records. The website displays the matches and tiers.',
+        description: 'A mixture of skill-guided judgment and ordinary code makes this feature work.',
+        boundary: 'A prompt requesting a skill is not proof that every run loaded or followed it. This is a code connection, not a run audit.',
+        evidence: [
+          { type: 'Requested by code', text: 'buildPrompt explicitly names the daily, job-site, and scoring skills, and conditionally names the profile skill.', source: 'helper', request: true },
+          { type: 'Project record', text: 'The task-skill table describes the search, scoring, and profile responsibilities.', source: 'log' }
+        ]
+      },
+      {
+        id: 'documents', view: 'features', title: 'Resume & cover letter', subtitle: 'Writing is AI; PDF rendering is code', kind: 'guided', label: 'Skill-guided agent work', certainty: 'Skill requested in code',
+        skills: ['resume'], sourceText: 'The document-generation prompt explicitly asks for jobpot-resume-cover-letter.',
+        agent: 'The agent interprets the job and supplied profile, chooses relevant material, and writes the document using the requested format.',
+        output: 'Generated text is saved. The browser turns that text into a PDF using ordinary rendering code.',
+        description: 'The skill is a writing playbook, not an independent author or the PDF engine.',
+        boundary: 'An individual document requires its own evidence check to establish whether the agent followed the skill.',
+        evidence: [{ type: 'Requested by code', text: 'The generation prompt names the resume/cover-letter skill and requests its output format between BEGIN/END markers.', source: 'helper', request: true }]
+      },
+      {
+        id: 'outreach', view: 'features', title: 'Outreach drafts', subtitle: 'LinkedIn notes and cold emails', kind: 'guided', label: 'Skill-guided agent work', certainty: 'Skill requested in code',
+        skills: ['outreach'], sourceText: 'The helper explicitly requests jobpot-cold-messages for drafting.',
+        agent: 'The agent selects a relevant angle and writes a short LinkedIn note and email using the job and supplied profile.',
+        output: 'The helper separates the document sections. The user can copy the note or use a Gmail draft; messages are not automatically sent.',
+        description: 'Skill guidance shapes the writing request; the agent still writes the actual wording.',
+        boundary: 'The request establishes intended skill use, not the causal source of each sentence.',
+        evidence: [{ type: 'Requested by code', text: 'The outreach prompt names the skill and requests LinkedIn and email sections.', source: 'helper', request: true }]
+      },
+      {
+        id: 'gmail', view: 'features', title: 'Application email updates', subtitle: 'Rules first, AI only when unclear', kind: 'code', label: 'Code-run behavior', certainty: 'Conditional AI verified in code',
+        skills: ['gmail'], sourceText: 'jobpot-gmail-status is requested only for the AI classification step, not every email.',
+        agent: 'When ordinary rules cannot decide, the agent interprets the unclear emails in a batch using the requested status guidance.',
+        output: 'Clear messages are classified by existing rules. Only unclear application messages are passed to the AI classifier.',
+        description: 'A result can happen without an AI skill being used for that particular email.',
+        boundary: 'No AI call for a clear email does not mean the rules were developed without skill guidance.',
+        evidence: [
+          { type: 'Direct file evidence', text: 'checkGmail calls classifyByRules first and only invokes classifyWithAi when the unclear list is nonempty.', source: 'gmail' },
+          { type: 'Requested by code', text: 'The fallback AI prompt explicitly names jobpot-gmail-status.', source: 'helper', request: true }
+        ]
+      },
+      {
+        id: 'insights', view: 'features', title: 'Mismatch insights', subtitle: 'Interpretation and project ideas', kind: 'guided', label: 'Skill-guided agent work', certainty: 'Skill requested in code',
+        skills: ['insights'], sourceText: 'The analysis prompt explicitly asks for jobpot-insights.',
+        agent: 'The agent compares job requirements with supplied profile information and proposes gaps and portfolio projects.',
+        output: 'The helper parses the structured analysis, and the website presents it in the Insights tab.',
+        description: 'These are explanations based on available evidence, not confirmed reasons for a hiring decision.',
+        boundary: "A skill cannot reveal an employer's actual reasoning. Individual analyses still need review.",
+        evidence: [{ type: 'Requested by code', text: 'The insights-generation prompt names jobpot-insights and specifies the structured result.', source: 'helper', request: true }]
+      },
+      {
+        id: 'apply', view: 'features', title: 'Application autofill', subtitle: 'No AI run when the form fills', kind: 'code', label: 'Code-run behavior', certainty: 'Implementation verified in code',
+        skills: ['apply'], sourceText: 'jobpot-apply-autofill documents the behavior and guardrails. It is not an AI engine filling each field.',
+        agent: 'No agent reasoning is required when this feature runs. The helper and autofill script use the saved information.',
+        output: 'Code opens the application page, fills recognized fields, attaches a resume, and highlights unanswered questions.',
+        description: 'This is the important difference between a skill documenting a feature and a skill executing a task.',
+        boundary: 'The runtime is code-driven. The historical authorship of every code decision cannot be separated into skill versus skill-free reasoning.',
+        evidence: [
+          { type: 'Direct file evidence', text: 'The skill says Apply is automated by the helper, not an AI run, and describes the code-based behavior.', source: 'applySkill' },
+          { type: 'Direct file evidence', text: 'The autofill script implements the field interactions.', source: 'autofill' }
+        ]
+      },
+      {
+        id: 'inspector', view: 'inspector', title: 'This skill inspector', subtitle: 'A transparent example of its own', kind: 'guided', label: 'Skill-guided agent work', certainty: 'Loaded in this session',
+        skills: ['ux', 'frontend', 'browser'], sourceText: 'frontend-design guides visual hierarchy. UI/UX Pro Max supplies UX rules and reference recommendations. playwright-cli guides browser verification.',
+        agent: 'The agent reviewed source files and historical records, chose the evidence labels and source-to-result layout, and wrote this self-contained page.',
+        output: "A static, interactive report. It does not monitor the agent, send data to a service, or alter Jobpot's product screens.",
+        description: 'The agent authored this page with skills available. The skills did not generate an exact design or supply its historical findings.',
+        boundary: 'The initial reference search was off-topic. The retry supported a light dashboard; sales-page structure and code-oriented fonts were rejected for this designer-facing report. General skill rules, not a verified database match, informed those choices.',
+        evidence: [
+          { type: 'Current session event', text: 'frontend-design, UI/UX Pro Max, and playwright-cli were loaded for this standalone interface.' },
+          { type: 'Direct file evidence', text: 'Source review provides the findings. All report data is embedded locally; interactions make no AI or network calls.', source: 'log' }
+        ]
+      }
+    ];
+    const scopes = {
+      design: "Two different designs: the original app and the later token demo. The demo did not replace Jobpot's existing screens.",
+      features: "These are code connections and documented responsibilities, not a live inspection of today's AI run.",
+      inspector: 'You are looking at a report, not an attribution engine. These skills were loaded to help create and check this page.'
+    };
+    const icons = {
+      source: '<rect x="3" y="3" width="7" height="7" rx="2"/><rect x="14" y="14" width="7" height="7" rx="2"/><path d="M10 6.5h7.5V14"/>',
+      agent: '<path d="M8 3h8l5 9-5 9H8l-5-9z"/><path d="m9 12 2 2 4-4"/>',
+      result: '<rect x="3" y="4" width="18" height="16" rx="3"/><path d="M3 9h18m-12 0v11"/>'
+    };
+    let view = 'design';
+    let filter = 'all';
+    let selected = 'tokens';
+    const escapeHtml = (value) => String(value).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+    const icon = (name) => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true">${icons[name]}</svg>`;
+    function specimen(type) {
+      const demo = type === 'demo';
+      const colors = demo ? [['Primary', '#0369A1'], ['Accent', '#16A34A'], ['Background', '#F0F9FF']] : [['Ink', '#18213d'], ['Marigold', '#f2b035'], ['Dawn', '#e9eef5']];
+      return `<div class="specimen"><div class="swatches">${colors.map(([label, hex]) => `<div class="swatch"><i style="background:${hex}" aria-hidden="true"></i><div><b>${label}</b><span>${hex}</span></div></div>`).join('')}</div><p class="type-line"><strong>Saved font choices:</strong> ${demo ? 'Fira Code / Fira Sans' : 'Bricolage Grotesque / Atkinson Hyperlegible Next'}</p></div>`;
+    }
+    function render(announce = false) {
+      const group = features.filter(f => f.view === view);
+      const visible = group.filter(f => filter === 'all' || f.skills.includes(filter));
+      const feature = visible.find(f => f.id === selected) || visible[0];
+      selected = feature.id;
+      document.querySelectorAll('[data-view]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.view === view)));
+      document.getElementById('scope').innerHTML = `<p>${escapeHtml(scopes[view])}</p>`;
+      document.getElementById('result-count').textContent = `${visible.length} of ${group.length} results`;
+      document.getElementById('outputs').innerHTML = visible.map(f => `<button class="output-button" type="button" data-output="${f.id}" aria-pressed="${f.id === selected}"><strong>${escapeHtml(f.title)}</strong><span>${escapeHtml(f.subtitle)}</span></button>`).join('');
+      const available = [...new Set(group.flatMap(f => f.skills))];
+      const filters = [['all', 'All sources'], ...available.map(id => [id, skills[id]])];
+      const filterArea = document.getElementById('filters');
+      const filterFocus = filterArea.contains(document.activeElement) ? document.activeElement.dataset.filter : null;
+      filterArea.innerHTML = filters.map(([id, label]) => `<button type="button" class="filter" data-filter="${id}" aria-pressed="${filter === id}">${escapeHtml(label)}</button>`).join('');
+      if (filterFocus) filterArea.querySelector(`[data-filter="${filterFocus}"]`).focus();
+      document.getElementById('feature').innerHTML = `
+        <article class="feature" aria-labelledby="feature-title">
+          <div class="feature-head"><div class="feature-meta"><span class="badge ${feature.kind}">${feature.label}</span><span class="small">${escapeHtml(feature.certainty)}</span></div><h2 id="feature-title">${escapeHtml(feature.title)}</h2><p>${escapeHtml(feature.description)}</p></div>
+          ${feature.specimen ? specimen(feature.specimen) : ''}
+          <div class="path" aria-label="Sources, agent decisions, and result">
+            <section class="step"><h3>${icon('source')} Skill input</h3>${feature.skills.map(s => `<span class="source-name">${escapeHtml(skills[s])}</span>`).join('')}<p class="source-caption">${escapeHtml(feature.sourceText)}</p></section>
+            <section class="step"><h3>${icon('agent')} Agent decisions</h3><p>${escapeHtml(feature.agent)}</p></section>
+            <section class="step"><h3>${icon('result')} What runs or appears</h3><p>${escapeHtml(feature.output)}</p></section>
+          </div><div class="boundary"><strong>What we cannot claim:</strong> ${escapeHtml(feature.boundary)}</div>
+        </article>`;
+      document.getElementById('evidence').innerHTML = feature.evidence.map(e => {
+        const source = e.source ? sources[e.source] : null;
+        return `<div class="evidence-row"><div class="evidence-kind ${e.request ? 'request' : ''}">${escapeHtml(e.type)}</div><div>${escapeHtml(e.text)}${source ? `<p><a href="${source.href}" target="_blank" rel="noopener">${escapeHtml(source.label)} (opens a new tab)</a></p>` : ''}${e.note ? `<p class="small">${escapeHtml(e.note)}</p>` : ''}</div></div>`;
+      }).join('');
+      document.getElementById('relation').hidden = view !== 'design';
+      if (announce) document.getElementById('status').textContent = `Showing ${feature.title}. ${visible.length} results connected to ${filter === 'all' ? 'all sources' : skills[filter]}.`;
+    }
+    document.querySelector('.views').addEventListener('click', event => {
+      const button = event.target.closest('[data-view]');
+      if (!button) return;
+      view = button.dataset.view;
+      filter = 'all';
+      render(true);
+    });
+    document.getElementById('filters').addEventListener('click', event => {
+      const button = event.target.closest('[data-filter]');
+      if (!button) return;
+      filter = button.dataset.filter;
+      render(true);
+    });
+    document.getElementById('outputs').addEventListener('click', event => {
+      const button = event.target.closest('[data-output]');
+      if (!button) return;
+      selected = button.dataset.output;
+      render(true);
+      document.querySelector(`[data-output="${selected}"]`).focus();
+    });
+    const library = ['frontend-design', 'skill-creator', 'ui-ux-pro-max', 'web-design-guidelines', 'react-best-practices', 'playwright-cli', 'cloudflare', 'wrangler', 'workers-best-practices', 'workers-development', 'cloudflare-app-bootstrap', 'frameworks-on-cloudflare', 'agents-sdk'];
+    document.getElementById('library').innerHTML = library.map(s => `<div><strong>${escapeHtml(s)}</strong><span>Listed as installed</span></div>`).join('');
+    render();
+  </script>
+</body>
+</html>

@@ -36,6 +36,18 @@ const APPLY_HOSTS = [
 const SITES = ['linkedin', 'indeed', 'company-pages', 'wellfound', 'builtin']
 const WORK_TYPES = ['remote', 'hybrid', 'onsite', 'unknown']
 const KEEP_RUN_DAYS = 14
+const LAST_RUN = path.join(HOME_DIR, 'last-run.json')
+const RUN_LOCK = path.join(HOME_DIR, 'run.lock')
+const USER_COPILOT_HOME = process.env.COPILOT_HOME ?? path.join(os.homedir(), '.copilot')
+// A clock jump this big during a run means the Mac slept.
+const SLEEP_GAP_MS = 60_000
+const MAX_CATCHUPS = 2
+// First messages of Jobpot's unattended prompts, used to find old Jobpot sessions in the user's Copilot history.
+const JOBPOT_PROMPTS = [
+  "Run today's Jobpot daily search", 'Write a tailored resume for this job', 'Write a cover letter for this job',
+  'Write cold outreach drafts for this job', "Analyze why these job applications didn't work out",
+  'Classify these emails about job applications',
+]
 // The unattended agent only gets read-and-click browser actions: no file uploads, no running code outside the page.
 const BROWSE_COMMANDS = new Set([
   'open', 'goto', 'snapshot', 'find', 'eval', 'click', 'dblclick', 'hover', 'type', 'fill', 'press',
@@ -618,7 +630,15 @@ function pruneRuns() {
 }
 
 // Runs Copilot unattended with only the `jobpot` command allowed, and reports usage and its final reply.
-async function runCopilot({ prompt, runDir, deadline, maxCredits, session }) {
+async function runCopilot({ prompt, runDir, deadline, maxCredits, session, stopOnSleep = false }) {
+  // Jobpot's sessions go in a private Copilot folder that is deleted afterwards, so they never fill the user's
+  // session list. Copying the user's settings keeps their model choice; sign-in comes from the Keychain.
+  const copilotHome = path.join(runDir, 'copilot')
+  fs.mkdirSync(copilotHome, { recursive: true, mode: 0o700 })
+  for (const file of ['config.json', 'settings.json']) {
+    const from = path.join(USER_COPILOT_HOME, file)
+    if (fs.existsSync(from)) fs.copyFileSync(from, path.join(copilotHome, file))
+  }
   const copilotArgs = [
     '-p', prompt, '-C', REPO,
     '--allow-tool', 'shell(jobpot:*)', '--deny-tool', 'write',
@@ -631,6 +651,7 @@ async function runCopilot({ prompt, runDir, deadline, maxCredits, session }) {
       ...process.env,
       JOBPOT_RUN_DIR: runDir,
       JOBPOT_SESSION: session,
+      COPILOT_HOME: copilotHome,
       PATH: [BIN_DIR, path.dirname(process.execPath), process.env.PATH].join(':'),
     },
     stdio: ['ignore', 'pipe', 'pipe'],
@@ -665,6 +686,22 @@ async function runCopilot({ prompt, runDir, deadline, maxCredits, session }) {
   })
   child.stderr.on('data', (chunk) => log.write(chunk))
 
+  // Keep the Mac from idle-sleeping while Copilot works (a closed laptop on battery still sleeps).
+  if (process.platform === 'darwin' && child.pid) {
+    spawn('caffeinate', ['-i', '-s', '-w', String(child.pid)], { stdio: 'ignore' }).on('error', () => {})
+  }
+  let slept = false
+  let lastTick = Date.now()
+  const sleepWatch = setInterval(() => {
+    const now = Date.now()
+    if (stopOnSleep && now - lastTick > SLEEP_GAP_MS && !slept) {
+      slept = true
+      child.kill('SIGTERM')
+      setTimeout(() => child.kill('SIGKILL'), 10_000).unref()
+    }
+    lastTick = now
+  }, 5_000)
+
   let timedOut = false
   const killer = setTimeout(() => {
     timedOut = true
@@ -674,12 +711,50 @@ async function runCopilot({ prompt, runDir, deadline, maxCredits, session }) {
   // 'exit' rather than 'close': browser processes the agent started can keep the output pipe open after Copilot stops.
   const exitCode = await new Promise((resolve) => child.on('exit', resolve))
   clearTimeout(killer)
+  clearInterval(sleepWatch)
   log.end()
   spawnSync('playwright-cli', [`-s=${session}`, 'close'], { stdio: 'ignore' })
-  return { exitCode, aiRequests, finalMessage, timedOut }
+  fs.rmSync(copilotHome, { recursive: true, force: true })
+  return { exitCode, aiRequests, finalMessage, timedOut: timedOut && !slept, slept }
+}
+
+function localDay(date = new Date()) {
+  return date.toLocaleDateString('en-CA')
+}
+
+function pidAlive(pid) {
+  try {
+    process.kill(pid, 0)
+    return true
+  } catch {
+    return false
+  }
+}
+
+function readOptionalJson(file) {
+  try {
+    return JSON.parse(fs.readFileSync(file, 'utf8'))
+  } catch {
+    return null
+  }
+}
+
+function runLocked() {
+  const lock = readOptionalJson(RUN_LOCK)
+  return Boolean(lock?.pid && pidAlive(lock.pid))
 }
 
 async function run(_args, flags) {
+  if (runLocked()) return console.log('A Jobpot search is already running.')
+  writePrivate(RUN_LOCK, { pid: process.pid })
+  try {
+    await runSearch(flags)
+  } finally {
+    fs.rmSync(RUN_LOCK, { force: true })
+  }
+}
+
+async function runSearch(flags) {
   const config = requireConfig()
   installBinLink()
   await uploadPending(config)
@@ -701,29 +776,43 @@ async function run(_args, flags) {
     await runGmailCheck(config).catch((error) => console.log(`Gmail check skipped: ${error.message}`))
   }
 
-  const { exitCode, aiRequests, finalMessage, timedOut } = await runCopilot({
+  const { exitCode, aiRequests, finalMessage, timedOut, slept } = await runCopilot({
     prompt: buildPrompt(runInfo, profileData),
     runDir,
     deadline: runInfo.deadline,
     maxCredits,
     session: 'jobpot',
+    stopOnSleep: true,
   })
 
   const saved = readJsonFile(path.join(runDir, 'results.json')).length
   const hitRequestCap = Boolean(maxCredits && aiRequests !== null && aiRequests >= maxCredits)
-  const status = timedOut ? 'time-limit' : hitRequestCap ? 'request-limit' : exitCode === 0 || saved ? 'completed' : 'failed'
-  Object.assign(runInfo, { finishedAt: Date.now(), status, aiRequests, note: finalMessage.slice(0, 500) })
+  const status = slept
+    ? 'failed'
+    : timedOut ? 'time-limit' : hitRequestCap ? 'request-limit' : exitCode === 0 || saved ? 'completed' : 'failed'
+  const note = slept
+    ? 'Your Mac went to sleep during the search, so it stopped early. Jobpot searches again when you next use your Mac.'
+    : finalMessage.slice(0, 500)
+  Object.assign(runInfo, { finishedAt: Date.now(), status, aiRequests, note })
+  const previous = readOptionalJson(LAST_RUN)
+  writePrivate(LAST_RUN, {
+    day: localDay(new Date(startedAt)),
+    outcome: slept ? 'interrupted' : 'done',
+    catchups: (previous?.day === localDay(new Date(startedAt)) ? (previous.catchups ?? 0) : 0) + (flags.catchup ? 1 : 0),
+    finishedAt: runInfo.finishedAt,
+  })
   writePrivate(path.join(runDir, 'run.json'), runInfo)
   writePrivate(path.join(runDir, 'pending'), '')
 
   const minutesUsed = Math.round((runInfo.finishedAt - startedAt) / 6000) / 10
-  console.log(`Run ${status} after ${minutesUsed} min, ${aiRequests ?? '?'} AI requests, ${saved} jobs saved.`)
+  console.log(`Run ${slept ? 'stopped (the Mac went to sleep)' : status} after ${minutesUsed} min, ${aiRequests ?? '?'} AI requests, ${saved} jobs saved.`)
   try {
     const out = await uploadRun(config, runDir)
     console.log(`Uploaded to Jobpot: ${out.added} new jobs.`)
   } catch (error) {
     console.log(`Couldn't upload yet (${error.message}). It will upload on the next run.`)
   }
+  if (slept) return
   // Refresh Insights only when new rejected or no-reply applications have appeared.
   const insights = await generateInsights(config).catch((error) => ({ skipped: `Insights skipped: ${error.message}` }))
   console.log(insights.skipped ?? `Insights updated from ${insights.updated} applications.`)
@@ -1135,7 +1224,41 @@ function readBody(req, limit = 6_000_000) {
 }
 
 // Only the Jobpot website this computer is paired with may call the helper; browsers can't fake the Origin header.
+// Seconds since the keyboard or trackpad was last used; large during the Mac's brief sleep-time wake-ups.
+function idleSeconds() {
+  const out = spawnSync('ioreg', ['-c', 'IOHIDSystem', '-d', '4'], { encoding: 'utf8' }).stdout ?? ''
+  const ns = out.match(/"HIDIdleTime" = (\d+)/)?.[1]
+  return ns ? Number(ns) / 1e9 : Infinity
+}
+
+function scheduledStart() {
+  if (!fs.existsSync(PLIST)) return null
+  const xml = fs.readFileSync(PLIST, 'utf8')
+  const hour = xml.match(/<key>Hour<\/key><integer>(\d+)<\/integer>/)?.[1]
+  const minute = xml.match(/<key>Minute<\/key><integer>(\d+)<\/integer>/)?.[1]
+  return hour === undefined || minute === undefined ? null : { hour: Number(hour), minute: Number(minute) }
+}
+
+// Runs today's search when the scheduled one was missed or cut short by sleep, once the user is at the Mac.
+function maybeCatchUp() {
+  const time = scheduledStart()
+  if (!time || !readConfig()?.token || runLocked()) return
+  const now = new Date()
+  const start = new Date(now)
+  start.setHours(time.hour, time.minute, 0, 0)
+  // A few minutes' grace so this never races the scheduled start.
+  if (now - start < 5 * 60 * 1000) return
+  const last = readOptionalJson(LAST_RUN)
+  if (last?.day === localDay(now) && (last.outcome === 'done' || (last.catchups ?? 0) >= MAX_CATCHUPS)) return
+  if (idleSeconds() > 120) return
+  fs.mkdirSync(LOG_DIR, { recursive: true })
+  const out = fs.openSync(path.join(LOG_DIR, 'daily.log'), 'a')
+  console.log(`[${now.toLocaleString()}] Starting a catch-up search (today's search was missed or cut short).`)
+  spawn(process.execPath, [SCRIPT, 'run', '--catchup', 'true'], { cwd: REPO, detached: true, stdio: ['ignore', out, out] }).unref()
+}
+
 function serve() {
+  if (process.platform === 'darwin' && !process.env.JOBPOT_NO_LAUNCHD) setInterval(maybeCatchUp, 2 * 60 * 1000)
   const server = http.createServer(async (req, res) => {
     const config = readConfig()
     const allowed = config?.server ? new URL(config.server).origin : null
@@ -1278,6 +1401,58 @@ async function forget() {
   console.log('Removed Jobpot from this computer: Gmail access, the Jobpot browser profile, run files, settings, and schedules.')
 }
 
+// Removes sessions that Jobpot's unattended runs left in the user's Copilot history (before runs used a private folder).
+async function cleanSessions() {
+  const stateDir = path.join(USER_COPILOT_HOME, 'session-state')
+  const isJobpot = (text) => JOBPOT_PROMPTS.some((p) => String(text ?? '').startsWith(p))
+  const ids = new Set()
+  for (const id of fs.existsSync(stateDir) ? fs.readdirSync(stateDir) : []) {
+    const events = path.join(stateDir, id, 'events.jsonl')
+    if (!fs.existsSync(events)) continue
+    for (const line of fs.readFileSync(events, 'utf8').split('\n')) {
+      let event
+      try {
+        event = JSON.parse(line)
+      } catch {
+        continue
+      }
+      if (event.type !== 'user.message') continue
+      if (isJobpot(event.data?.content)) ids.add(id)
+      break
+    }
+  }
+  const dbPath = path.join(USER_COPILOT_HOME, 'session-store.db')
+  let db = null
+  if (fs.existsSync(dbPath)) {
+    const { DatabaseSync } = await import('node:sqlite')
+    db = new DatabaseSync(dbPath)
+    db.exec('PRAGMA busy_timeout = 10000')
+    for (const row of db.prepare('SELECT session_id, user_message FROM turns WHERE turn_index = 0').all()) {
+      if (isJobpot(row.user_message)) ids.add(row.session_id)
+    }
+  }
+  // Leave any session that is open right now.
+  const busy = (id) => fs.existsSync(path.join(stateDir, id)) && fs.readdirSync(path.join(stateDir, id)).some((f) => f.startsWith('inuse.'))
+  const targets = [...ids].filter((id) => !busy(id))
+  if (db && targets.length) {
+    const tables = db.prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND sql LIKE '%session_id%'").all().map((r) => r.name)
+    db.exec('BEGIN')
+    try {
+      for (const id of targets) {
+        for (const table of tables) db.prepare(`DELETE FROM "${table}" WHERE session_id = ?`).run(id)
+        db.prepare('DELETE FROM sessions WHERE id = ?').run(id)
+      }
+      db.exec('COMMIT')
+    } catch (error) {
+      db.exec('ROLLBACK')
+      throw error
+    }
+  }
+  db?.close()
+  for (const id of targets) fs.rmSync(path.join(stateDir, id), { recursive: true, force: true })
+  console.log(`Removed ${targets.length} Jobpot ${targets.length === 1 ? 'session' : 'sessions'} from your Copilot history.`)
+}
+
 function service([action]) {
   if (action === 'install') return installService()
   if (action === 'remove') {
@@ -1304,13 +1479,14 @@ const HELP = `Jobpot helper
   jobpot insights                     Refresh the Insights tab (why applications didn't work out)
   jobpot serve                        Run the local service the website uses for Apply and documents
   jobpot service install|remove       Keep that service running in the background (Mac)
+  jobpot clean-sessions               Remove sessions left in your Copilot history by older Jobpot runs
   jobpot forget                       Remove Jobpot's data, Gmail access, and schedules from this computer
 
   Used by the agent during a run: profile, scan, search, describe, browse, result add|list, time-left`
 
 const COMMANDS = {
   pair, status, settings, schedule, unschedule, summary, run, submit, profile, feed, scan, search, describe, browse, result,
-  serve, service, forget, gmail: gmailCommand, insights: insightsCommand,
+  serve, service, forget, 'clean-sessions': cleanSessions, gmail: gmailCommand, insights: insightsCommand,
   'time-left': timeLeft,
 }
 

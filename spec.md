@@ -80,7 +80,7 @@ A public website for job seekers, connected to an AI coding agent (GitHub Copilo
 - **Token report:** GitHub Copilot reports premium requests, not tokens, so limits and the Tab 4 report use requests.
 - **Free tier:** Cloudflare's free limits may not cover a public product as it grows.
 - **Gmail:** a public app that reads email needs Google's security review before anyone outside a test list can use it. While the Google app is in Testing, only listed test users (up to 100) can connect, and Google expires their access after 7 days, so they reconnect weekly.
-- **Schedule:** the user's computer must be on at search time; if it's asleep, the Mac runs the search when it wakes.
+- **Schedule:** a sleeping Mac only wakes for seconds at a time, which isn't enough for a search. Jobpot keeps the Mac awake while a search runs (a closed laptop on battery still sleeps), stops a search the Mac slept through, and runs a catch-up search (up to 2 a day) once the user is at the Mac.
 - **Helper on the deployed site:** browsers may ask the user once to let the Jobpot website reach the helper on their computer (Chrome's local network permission).
 - **Live vs. local site:** the helper uploads to whichever site it was paired with (`--server`). Missed uploads retry on the next run.
 - **Password checks on the free plan:** passwords use 100,000 rounds of PBKDF2 (the Workers maximum). Checked after deploying: sign-up and login work on the free plan (about 0.3 s each). Recheck if login errors appear as traffic grows.

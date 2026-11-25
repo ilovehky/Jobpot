@@ -11,7 +11,7 @@ Installed in `~/.copilot/skills/` on the developer's computer. Not stored in thi
 | --- | --- | --- | --- |
 | frontend-design | [anthropics/skills](https://github.com/anthropics/skills/tree/main/skills/frontend-design) | Apache 2.0 | Visual direction, typography, non-generic UI |
 | skill-creator | [anthropics/skills](https://github.com/anthropics/skills/tree/main/skills/skill-creator) | Apache 2.0 | Writing Jobpot's own skills |
-| ui-ux-pro-max | [nextlevelbuilder/ui-ux-pro-max-skill](https://github.com/nextlevelbuilder/ui-ux-pro-max-skill) | MIT | Palettes, font pairings, UX rules (community skill) |
+| ui-ux-pro-max | [nextlevelbuilder/ui-ux-pro-max-skill](https://github.com/nextlevelbuilder/ui-ux-pro-max-skill) | MIT | Palettes, font pairings, UX rules, design-token exports and previews (community skill) |
 | web-design-guidelines | [vercel-labs/agent-skills](https://github.com/vercel-labs/agent-skills/tree/main/skills/web-design-guidelines) | See repo | UI and accessibility reviews (fetches latest rules online) |
 | react-best-practices | [vercel-labs/agent-skills](https://github.com/vercel-labs/agent-skills/tree/main/skills/react-best-practices) | See repo | React performance and patterns |
 | playwright-cli | [microsoft/playwright-cli](https://github.com/microsoft/playwright-cli/tree/main/skills/playwright-cli) | Apache 2.0 | Browser control for job search and Apply autofill. Needs `npm install -g @playwright/cli@latest` |
@@ -56,3 +56,6 @@ Stored in `.github/skills/`, where GitHub Copilot finds them automatically.
 - 2026-11-17: Step 6: jobpot-insights documents the unattended run and JSON output; tested live on placeholder data.
 - 2026-11-17: Step 7: jobpot (setup consent), jobpot-fit-score (work authorization cap), jobpot-apply-autofill (self-identification), and jobpot-profile updated for self-identification and AI consent.
 - 2026-11-18: Used jobpot to start an on-demand search with the helper's saved settings.
+- 2026-11-19: Used ui-ux-pro-max, frontend-design, and playwright-cli for the standalone [design-token demo](design-system/jobpot-token-demo/preview.html); generated CSS/JSON tokens and an HTML preview, with desktop/mobile and keyboard checks in the integrated browser.
+- 2026-11-19: Used ui-ux-pro-max and frontend-design to add an interactive switch and save-button example to the token demo, using its shared tokens and keeping all state in the current page.
+- 2026-11-23: Used frontend-design, ui-ux-pro-max, and playwright-cli for the standalone [skill inspector](design-system/jobpot-skill-inspector/preview.html). Maps recorded skill use, generator output, runtime skill requests, and code-driven behavior without claiming contribution percentages or changing Jobpot's screens. The report contains no account data and makes no AI or network calls.
